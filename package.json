@@ -1,0 +1,36 @@
+{
+  "name": "donut-days",
+  "version": "0.0.0",
+  "description": "Orchestration library for using exploranda-core in cloud functions",
+  "main": "index.js",
+  "scripts": {
+    "test": "jasmine"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RLuckom/donut-days.git"
+  },
+  "keywords": [
+    "exploranda",
+    "exploranda-core",
+    "orchestration",
+    "cloud",
+    "cloudfunction",
+    "lambda"
+  ],
+  "author": "Raphael Luckom",
+  "license": "GPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/RLuckom/donut-days/issues"
+  },
+  "homepage": "https://github.com/RLuckom/donut-days#readme",
+  "dependencies": {
+    "async": "^3.2.0",
+    "exploranda-core": "^0.2.10",
+    "lodash": "^4.17.20"
+  },
+  "devDependencies": {
+    "jasmine": "^3.6.1",
+    "rewire": "^5.0.0"
+  }
+}
