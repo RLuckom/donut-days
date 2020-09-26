@@ -177,4 +177,79 @@ const test5 = {
   } 
 }
 
-generateTests('Basic', [test1, test2, test3, test4, test5])
+const test6 = {
+  name: 'test6',
+  validators: {
+    intro: {
+      dependencyInput: {
+        one: (n) => n === 4
+      },
+      dependencies: {
+      }
+    },
+    main: {
+      dependencies: {
+        one: _.isString
+      }
+    },
+    outro: {
+      dependencyInput: {
+        one: (n) => n === 4
+      },
+      dependencies: {
+        nextFunction_invoke: (dep) => {
+          console.log(JSON.stringify(dep))
+          return (dep.accessSchema && dep.params.FunctionName.value === 4
+                  && dep.params.Payload.value === 4)
+        }
+      }
+    }
+  },
+  config: {
+    conditions: {
+      doesMatchCopy: [{
+        matchesAll: {
+          'event.foo.bar': 4
+        }
+      }]
+    },
+    intro: {
+      transformers: {
+        copyFooBar: [{
+          copy: {
+            'event.foo.bar': 'one'
+          }
+        }]
+      },
+    },
+    outro: {
+      transformers: {
+        copyFooBar: [{
+          copy: {
+            'event.foo.bar': 'one'
+          }
+        }]
+      },
+      dependencies: {
+        nextFunction: {
+          action: 'invokeFunction',
+          params: {
+            FunctionName: { ref: 'one' },
+            Payload: { ref: 'one' }
+          }
+        }
+      }
+    },
+  },
+  event: {
+    foo: {
+      bar: 4
+    }
+  },
+  onComplete: (finishedSteps) => expect(finishedSteps.length).toEqual(3),
+  makeDependencies: () => {
+   return { one : 'one' }
+  } 
+}
+
+generateTests('Basic', [test1, test2, test3, test4, test5, test6])

@@ -59,19 +59,6 @@ function transformStage(transformationConfig, source, dest) {
   })
 }
 
-function populateDependencies(transformationConfig, source, dest) {
-  return _(stageTransformers).each((v, k) => {
-    _.each(transformationConfig, (transformation) => {
-      const relevantTransformation = _.get(transformation, k)
-      trace(`performing ${JSON.stringify(transformation)} : ${k} ${JSON.stringify(relevantTransformation)}`)
-      if (relevantTransformation) {
-        trace(`[ transform: ${k} ]`)
-        v(relevantTransformation, source, dest)
-      }
-    })
-  })
-}
-
 function transformInput(stage, config, source) {
   const stageConfig = _.get(config, [stage, 'transformers'])
   trace(`making input for ${stage} with ${JSON.stringify(stage)}`)
@@ -84,15 +71,50 @@ function transformInput(stage, config, source) {
   return newInput
 }
 
-function populateDependencies(stage, config, source) {
-  const stageConfig = _.get(config, [stage, 'dependenciess'])
-  trace(`making input for ${stage} with ${JSON.stringify(stage)}`)
-  const dependencies = {}
-  _.each(stageConfig, (v, k) => {
-    trace(`populating ${k} with config ${JSON.stringify(v)}`) 
-    populateDependencies(v, source, newInput)
+function processParams(input, config) {
+  const output = {}
+  _.each(config, (v, k) => {
+    if (v.value) {
+      output[k] = v.value
+    } else if (v.ref) {
+      output[k] = _.get(input, v.ref)
+    }
   })
-  trace(`dependencies for ${stage}: ${JSON.stringify(dependencies)}`)
+  return output
+}
+
+const dependencyBuilders = {
+  invokeFunction: (params, addDependency) => { 
+    addDependency('invoke',  {
+      accessSchema: exploranda.dataSources.AWS.lambda.invoke,
+      params: {
+        FunctionName: {
+          value: params.FunctionName
+        },
+        InvocationType: {value: 'Event'},
+        Payload: {
+          value: params.Payload
+        }
+      }
+    })
+  },
+}
+
+function builtInDependencies(input, config) {
+  const dependencies = {}
+  function getQualifiedDepName(prefix, depName) {
+    return `${prefix}_${depName}`
+  }
+  function addDependency(prefix, depName, dep) {
+    dependencies[getQualifiedDepName(prefix, depName)] = dep
+  }
+  _.each(config, (desc, name) => {
+    return dependencyBuilders[desc.action](
+      processParams(input, desc.params),
+      _.partial(addDependency, name),
+      _.partial(getQualifiedDepName, name)
+    )
+  })
   return dependencies
 }
 
@@ -108,14 +130,15 @@ function createTask(config, makeDependencies) {
   const makeIntroDependencies = function(event, context) {
     trace('intro')
     const input = transformInput('intro', config, {event, context})
-    return {}
+    return builtInDependencies(input, _.get(config, 'intro.dependencies'))
   }
   const makeMainDependencies = function(event, context, intro) {
     const input = transformInput('main', config, {event, context, intro})
     return makeDependencies(input)
   }
   const makeOutroDependencies = function(event, context, intro, main) {
-    return {}
+    const input = transformInput('outro', config, {event, context, intro, main})
+    return builtInDependencies(input, _.get(config, 'outro.dependencies'))
   }
   return function(event, context, callback) {
     function performIntro(callback) {
@@ -132,59 +155,30 @@ function createTask(config, makeDependencies) {
     function performOutro(intro, main, callback) {
       const dependencies = makeOutroDependencies(event, context, _.cloneDeep(intro), main)
       const reporter = exploranda.Gopher(dependencies);
-      reporter.report((e, n) => callback(e, intro, n));
+      reporter.report((e, n) => callback(e, intro, main, n));
+    }
+    function performCleanup(intro, main, outro, callback) {
+      setTimeout(() => {
+        try {
+        callback(null, transformInput('cleanup', config, {event, context, intro, main, outro}))
+        } catch(e) {
+          callback(e)
+        }
+      }, 0)
     }
     if (testEvent({event, context})) {
       debug(`event ${event ? JSON.stringify(event) : event} matched for processing`)
       async.waterfall([
         performIntro,
         performMain,
-        performOutro
+        performOutro,
+        performCleanup,
       ], callback)
     } else {
       debug(`event ${event ? JSON.stringify(event) : event} did not match for processing`)
       callback()
     }
   }
-}
-
-function dependencies(buckets, keys, eventTargets, mediaId) {
-  const functionInvocations = _.flattenDeep(_.map(_.zip(buckets, keys), ([bucket, key]) => {
-    return _(eventTargets).map((et) => {
-      const matches = _(et.matches).map(_.partial(eventMatches, bucket, key)).some()
-      if (matches) {
-        return JSON.parse(
-          JSON.stringify(et.functionInvocations)
-          .replace(/\$bucket/g, bucket)
-          .replace(/\$key/g, key)
-          .replace(/\$mediaId/g, mediaId)
-        )
-      }
-  }).filter().value()
-  }))
-  return {
-    invokeFunctions: {
-      accessSchema: exploranda.dataSources.AWS.lambda.invoke,
-      params: {
-        FunctionName: {
-          value: _.map(functionInvocations, 'functionArn')
-        },
-        InvocationType: {value: 'Event'},
-        Payload: {
-          value: _.map(functionInvocations, (fi) => JSON.stringify(fi.eventSchema))
-        }
-      }
-    },
-  }
-}
-
-const handler = function(event, context, callback) {
-  const eventTargets = JSON.parse(process.env.MEDIA_EVENT_TARGETS)
-  const keys = _.map(event.Records, 's3.object.key')
-  const buckets = _.map(event.Records, 's3.bucket.name')
-  const mediaId = uuid.v4()
-  const reporter = exploranda.Gopher(dependencies(buckets, keys, eventTargets, mediaId));
-  reporter.report((e, n) => callback(e, n));
 }
 
 module.exports = {

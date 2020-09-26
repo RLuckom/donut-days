@@ -22,6 +22,7 @@ function makeExplorandaMock(expectations) {
       validateDependencies(dependencies, expectation.dependencies)
       return reporter(expectation)
     },
+    dataSources: {AWS : { lambda: {invoke: true }}},
     finishedSteps
   }
 }
