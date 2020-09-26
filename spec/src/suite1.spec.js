@@ -1,7 +1,8 @@
 const _ = require('lodash')
-const {generateTests} = require('./index.spec')
+const {generateTests} = require('./testHarness')
 
 const test1 = {
+  name: 'nothing',
   validators: {
     intro: {
       dependencies: {
@@ -24,6 +25,7 @@ const test1 = {
 }
 
 const test2 = {
+  name: 'main string dep',
   validators: {
     intro: {
       dependencies: {
@@ -48,6 +50,7 @@ const test2 = {
 }
 
 const test3 = {
+  name: 'condition matches',
   validators: {
     intro: {
       dependencies: {
@@ -64,8 +67,17 @@ const test3 = {
     }
   },
   config: {
-    matches: {
-      'foo.bar': 4
+    conditions: {
+      doesMatch: [{
+        matchesAll: {
+          'event.foo.bar': 4
+        }
+      }],
+      doesNotMatch: [{
+        matchesAll: {
+          'event.foo.bar': 7
+        }
+      }]
     }
   },
   event: {
@@ -80,6 +92,7 @@ const test3 = {
 }
 
 const test4 = {
+  name: 'condition matches all',
   validators: {
     intro: {
       dependencies: {
@@ -96,8 +109,12 @@ const test4 = {
     }
   },
   config: {
-    matches: {
-      'foo.bar': 4
+    conditions: {
+      doesNotMatch: [{
+        matchesAll: {
+          'event.foo.bar': 4
+        }
+      }]
     }
   },
   event: {
@@ -111,4 +128,53 @@ const test4 = {
   } 
 }
 
-generateTests('Basic', [test1, test2, test3, test4])
+const test5 = {
+  name: 'condition matches 2',
+  validators: {
+    intro: {
+      dependencyInput: {
+        one: (n) => n === 4
+      },
+      dependencies: {
+      }
+    },
+    main: {
+      dependencies: {
+        one: _.isString
+      }
+    },
+    outro: {
+      dependencies: {
+      }
+    }
+  },
+  config: {
+    conditions: {
+      doesMatchCopy: [{
+        matchesAll: {
+          'event.foo.bar': 4
+        }
+      }]
+    },
+    intro: {
+      transformers: {
+        copyFooBar: [{
+          copy: {
+            'event.foo.bar': 'one'
+          }
+        }]
+      },
+    }
+  },
+  event: {
+    foo: {
+      bar: 4
+    }
+  },
+  onComplete: (finishedSteps) => expect(finishedSteps.length).toEqual(3),
+  makeDependencies: () => {
+   return { one : 'one' }
+  } 
+}
+
+generateTests('Basic', [test1, test2, test3, test4, test5])

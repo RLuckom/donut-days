@@ -34,16 +34,32 @@ function validateDependencies(dependencies, depGraphSpec) {
     }
     expect(result).toBeTruthy()
   })
+  expect(_.keys(depGraphSpec).length).toEqual(_.keys(dependencies).length)
+}
+
+function newTransformInput(original, validators) {
+  return function(stage, config, source) {
+    const result = original(stage, config, source)
+    stageValidators = _.get(validators, [stage, 'dependencyInput'])
+    validateDependencies(result, stageValidators)
+    expect(_.keys(result).length).toEqual(_.keys(stageValidators).length)
+    return result
+  }
 }
 
 function generateTests(suiteName, testObjects) {
   describe(suiteName, () => {
     _.map(testObjects, ({name, onComplete, validators, config, event, context, makeDependencies}) => {
       it(name, (done) => {
+        console.log(name)
+        const originalTransformInput = main.__get__('transformInput')
         const explorandaMock = makeExplorandaMock(validators)
-        main.__set__('exploranda', explorandaMock)
+        const unsetExploranda = main.__set__('exploranda', explorandaMock)
+        const unsetTransformInput = main.__set__('transformInput', newTransformInput(originalTransformInput, validators))
         main.createTask(config, makeDependencies)(event, context || {}, () => {
-          (onComplete || _.noop)(explorandaMock.finishedSteps) 
+          (onComplete || _.noop)(explorandaMock.finishedSteps)
+          unsetExploranda()
+          unsetTransformInput()
           done()
         })
       })
