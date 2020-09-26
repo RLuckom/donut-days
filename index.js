@@ -71,13 +71,15 @@ function transformInput(stage, config, source) {
   return newInput
 }
 
-function processParams(input, config) {
+function processParams(input, config, helperFunctions) {
   const output = {}
   _.each(config, (v, k) => {
     if (v.value) {
       output[k] = v.value
     } else if (v.ref) {
       output[k] = _.get(input, v.ref)
+    } else if (v.helper) {
+      output[k] = helperFunctions[v.helper](processParams(input, v.params, helperFunctions))
     }
   })
   return output
@@ -100,7 +102,7 @@ const dependencyBuilders = {
   },
 }
 
-function builtInDependencies(input, config) {
+function builtInDependencies(input, config, helperFunctions) {
   const dependencies = {}
   function getQualifiedDepName(prefix, depName) {
     return `${prefix}_${depName}`
@@ -110,7 +112,7 @@ function builtInDependencies(input, config) {
   }
   _.each(config, (desc, name) => {
     return dependencyBuilders[desc.action](
-      processParams(input, desc.params),
+      processParams(input, desc.params, helperFunctions || {}),
       _.partial(addDependency, name),
       _.partial(getQualifiedDepName, name)
     )
@@ -118,7 +120,7 @@ function builtInDependencies(input, config) {
   return dependencies
 }
 
-function createTask(config, makeDependencies) {
+function createTask(config, makeDependencies, helperFunctions) {
   const testEvent = function(input) {
     return !config.conditions || _(config.conditions).map((v, k) => {
       trace(`Testing conditionSet ${k}`)
@@ -130,7 +132,7 @@ function createTask(config, makeDependencies) {
   const makeIntroDependencies = function(event, context) {
     trace('intro')
     const input = transformInput('intro', config, {event, context})
-    return builtInDependencies(input, _.get(config, 'intro.dependencies'))
+    return builtInDependencies(input, _.get(config, 'intro.dependencies'), helperFunctions)
   }
   const makeMainDependencies = function(event, context, intro) {
     const input = transformInput('main', config, {event, context, intro})
@@ -138,7 +140,7 @@ function createTask(config, makeDependencies) {
   }
   const makeOutroDependencies = function(event, context, intro, main) {
     const input = transformInput('outro', config, {event, context, intro, main})
-    return builtInDependencies(input, _.get(config, 'outro.dependencies'))
+    return builtInDependencies(input, _.get(config, 'outro.dependencies'), helperFunctions)
   }
   return function(event, context, callback) {
     function performIntro(callback) {

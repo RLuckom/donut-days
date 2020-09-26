@@ -50,14 +50,14 @@ function newTransformInput(original, validators) {
 
 function generateTests(suiteName, testObjects) {
   describe(suiteName, () => {
-    _.map(testObjects, ({name, onComplete, validators, config, event, context, makeDependencies}) => {
+    _.map(testObjects, ({name, onComplete, validators, config, event, context, makeDependencies, helperFunctions}) => {
       it(name, (done) => {
         console.log(name)
         const originalTransformInput = main.__get__('transformInput')
         const explorandaMock = makeExplorandaMock(validators)
         const unsetExploranda = main.__set__('exploranda', explorandaMock)
         const unsetTransformInput = main.__set__('transformInput', newTransformInput(originalTransformInput, validators))
-        main.createTask(config, makeDependencies)(event, context || {}, () => {
+        main.createTask(config, makeDependencies, helperFunctions || {})(event, context || {}, () => {
           (onComplete || _.noop)(explorandaMock.finishedSteps)
           unsetExploranda()
           unsetTransformInput()

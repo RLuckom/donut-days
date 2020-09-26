@@ -179,6 +179,9 @@ const test5 = {
 
 const test6 = {
   name: 'test6',
+  helperFunctions: {
+    one: ({a, b}) => a + b
+  },
   validators: {
     intro: {
       dependencyInput: {
@@ -200,7 +203,7 @@ const test6 = {
         nextFunction_invoke: (dep) => {
           console.log(JSON.stringify(dep))
           return (dep.accessSchema && dep.params.FunctionName.value === 4
-                  && dep.params.Payload.value === 4)
+                  && dep.params.Payload.value === 5)
         }
       }
     }
@@ -235,7 +238,12 @@ const test6 = {
           action: 'invokeFunction',
           params: {
             FunctionName: { ref: 'one' },
-            Payload: { ref: 'one' }
+            Payload: { helper: 'one' ,
+              params: {
+                a: { ref: 'one'},
+                b: { value: 1},
+              }
+            }
           }
         }
       }
