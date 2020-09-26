@@ -1,5 +1,6 @@
 const _ = require('lodash')
 const {generateTests} = require('./testHarness')
+const uuid = require('uuid')
 
 const test1 = {
   name: 'nothing',
@@ -133,9 +134,11 @@ const test5 = {
   validators: {
     intro: {
       dependencyInput: {
-        one: (n) => n === 4
+        one: (n) => n === 4,
+        mediaId: (m) => uuid.validate(m)
       },
       dependencies: {
+        mediaId_stored: (dep) => uuid.validate(dep.accessSchema.transformation())
       }
     },
     main: {
@@ -162,8 +165,19 @@ const test5 = {
           copy: {
             'event.foo.bar': 'one'
           }
-        }]
+        }],
+        mediaId: [{
+          uuid: ['mediaId']
+        }],
       },
+      dependencies: {
+        mediaId: {
+          action: 'storeItem',
+          params: {
+            item: { ref: 'mediaId' },
+          }
+        }
+      }
     }
   },
   event: {

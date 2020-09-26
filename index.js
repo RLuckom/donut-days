@@ -2,6 +2,7 @@
 var exploranda = require('exploranda-core');
 const async = require('async')
 const _ = require('lodash');
+const uuid = require('uuid')
 
 const apiConfig = {
   region: process.env.AWS_REGION
@@ -31,6 +32,7 @@ const conditionTesters = {
 }
 
 const stageTransformers = {
+  uuid: (uuidConfig, source, dest) => _.each(uuidConfig, (v) => { dest[v] = uuid.v4() }),
   copy: (copyConfig, source, dest) => _.each(copyConfig, (v, k) => {
     trace(`${v}, ${k}, ${JSON.stringify(source)}, ${JSON.stringify(dest)}`)
     _.set(dest, v, _.get(source, k))
@@ -100,6 +102,15 @@ const dependencyBuilders = {
       }
     })
   },
+  storeItem: (params, addDependency) => {
+    addDependency('stored', {
+      accessSchema: {
+        dataSource: 'SYNTHETIC',
+        transformation: () => params.item
+      },
+      params: {}
+    })
+  }
 }
 
 function builtInDependencies(input, config, helperFunctions) {
