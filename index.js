@@ -28,7 +28,9 @@ const conditionTesters = {
     trace(`[ att: ${k} ] [ input: ${JSON.stringify(input)} ] [ val: ${_.get(input, k)} ] [ expect: ${v} ]`)
     return _.get(input, k) === v
   }).every(),
-  matchesAny: (matches, input) => _(matches).map((v, k) => _.get(input, k) === v).some()
+  matchesAny: (matches, input) => _(matches).map((v, k) => _.get(input, k) === v).some(),
+  isEmptyList: (prop, input) => _.isArray(_.get(input, prop)) && _.get(input, prop).length === 0,
+  isNonEmptyList: (prop, input) => _.isArray(_.get(input, prop)) && _.get(input, prop).length !== 0
 }
 
 function stageTransformers(helpers) {
