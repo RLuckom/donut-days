@@ -39,8 +39,8 @@ function validateDependencies(dependencies, depGraphSpec) {
 }
 
 function newTransformInput(original, validators) {
-  return function(stage, config, source) {
-    const result = original(stage, config, source)
+  return function(transformers, stage, config, source) {
+    const result = original(transformers, stage, config, source)
     stageValidators = _.get(validators, [stage, 'dependencyInput'])
     validateDependencies(result, stageValidators)
     expect(_.keys(result).length).toEqual(_.keys(stageValidators).length)
@@ -50,14 +50,14 @@ function newTransformInput(original, validators) {
 
 function generateTests(suiteName, testObjects) {
   describe(suiteName, () => {
-    _.map(testObjects, ({name, onComplete, validators, config, event, context, makeDependencies, helperFunctions}) => {
+    _.map(testObjects, ({name, onComplete, validators, config, event, context, helperFunctions, dependencyHelpers}) => {
       it(name, (done) => {
         console.log(name)
         const originalTransformInput = main.__get__('transformInput')
         const explorandaMock = makeExplorandaMock(validators)
         const unsetExploranda = main.__set__('exploranda', explorandaMock)
         const unsetTransformInput = main.__set__('transformInput', newTransformInput(originalTransformInput, validators))
-        main.createTask(config, makeDependencies, helperFunctions || {})(event, context || {}, () => {
+        main.createTask(config, helperFunctions || {}, dependencyHelpers || {})(event, context || {}, () => {
           (onComplete || _.noop)(explorandaMock.finishedSteps)
           unsetExploranda()
           unsetTransformInput()

@@ -34,7 +34,7 @@ const test2 = {
     },
     main: {
       dependencies: {
-        one: _.isString
+        one_two: (n) => n === 'three'
       }
     },
     outro: {
@@ -43,11 +43,18 @@ const test2 = {
     }
   },
   config: {
+    main: {
+      dependencies: {
+        one: {
+          action: 'one'
+        }
+      }
+    }
   },
   event: {},
-  makeDependencies: () => {
-   return { one : 'one' }
-  } 
+  dependencyHelpers: {
+    one: (params, addDependency) => addDependency('two', 'three') 
+  }
 }
 
 const test3 = {
@@ -58,9 +65,6 @@ const test3 = {
       }
     },
     main: {
-      dependencies: {
-        one: _.isString
-      }
     },
     outro: {
       dependencies: {
@@ -87,9 +91,6 @@ const test3 = {
     }
   },
   onComplete: (finishedSteps) => expect(finishedSteps.length).toEqual(3),
-  makeDependencies: () => {
-   return { one : 'one' }
-  } 
 }
 
 const test4 = {
@@ -100,9 +101,6 @@ const test4 = {
       }
     },
     main: {
-      dependencies: {
-        one: _.isString
-      }
     },
     outro: {
       dependencies: {
@@ -124,9 +122,6 @@ const test4 = {
     }
   },
   onComplete: (finishedSteps) => expect(finishedSteps.length).toEqual(0),
-  makeDependencies: () => {
-   return { one : 'one' }
-  } 
 }
 
 const test5 = {
@@ -142,9 +137,6 @@ const test5 = {
       }
     },
     main: {
-      dependencies: {
-        one: _.isString
-      }
     },
     outro: {
       dependencies: {
@@ -174,7 +166,7 @@ const test5 = {
         mediaId: {
           action: 'storeItem',
           params: {
-            item: { ref: 'mediaId' },
+            item: { ref: 'stage.mediaId' },
           }
         }
       }
@@ -186,9 +178,6 @@ const test5 = {
     }
   },
   onComplete: (finishedSteps) => expect(finishedSteps.length).toEqual(3),
-  makeDependencies: () => {
-   return { one : 'one' }
-  } 
 }
 
 const test6 = {
@@ -205,9 +194,6 @@ const test6 = {
       }
     },
     main: {
-      dependencies: {
-        one: _.isString
-      }
     },
     outro: {
       dependencyInput: {
@@ -251,10 +237,10 @@ const test6 = {
         nextFunction: {
           action: 'invokeFunction',
           params: {
-            FunctionName: { ref: 'one' },
+            FunctionName: { ref: 'stage.one' },
             Payload: { helper: 'one' ,
               params: {
-                a: { ref: 'one'},
+                a: { ref: 'stage.one'},
                 b: { value: 1},
               }
             }
@@ -269,9 +255,119 @@ const test6 = {
     }
   },
   onComplete: (finishedSteps) => expect(finishedSteps.length).toEqual(3),
-  makeDependencies: () => {
-   return { one : 'one' }
-  } 
 }
 
-generateTests('Basic', [test1, test2, test3, test4, test5, test6])
+const test7 = {
+  name: 'test7',
+  helperFunctions: {
+    one: ({a, b}) => a + b
+  },
+  validators: {
+    intro: {
+      dependencyInput: {
+        one: (n) => n === 4
+      },
+      dependencies: {
+      }
+    },
+    main: {
+    },
+    outro: {
+      dependencyInput: {
+        one: (n) => n === 4
+      },
+      dependencies: {
+        nextFunctionEnabled_invoke: (dep) => {
+          console.log(JSON.stringify(dep))
+          return (_.get(dep, 'accessSchema') && dep.params.FunctionName.value === 4
+                  && dep.params.Payload.value === 5)
+        }
+      }
+    }
+  },
+  config: {
+    conditions: {
+      doesMatchCopy: [{
+        matchesAll: {
+          'event.foo.bar': 4
+        }
+      }]
+    },
+    intro: {
+      transformers: {
+        copyFooBar: [{
+          copy: {
+            'event.foo.bar': 'one'
+          }
+        }]
+      },
+    },
+    outro: {
+      transformers: {
+        copyFooBar: [{
+          copy: {
+            'event.foo.bar': 'one'
+          }
+        }]
+      },
+      dependencies: {
+        nextFunctionEnabled: {
+          conditions: {
+            doesMatch: [{
+              matchesAll: {
+                'event.foo.bar': 4
+              }
+            }],
+            doesNotMatch: [{
+              matchesAll: {
+                'event.foo.bar': 7
+              }
+            }]
+          },
+          action: 'invokeFunction',
+          params: {
+            FunctionName: { ref: 'stage.one' },
+            Payload: { helper: 'one' ,
+              params: {
+                a: { ref: 'stage.one'},
+                b: { value: 1},
+              }
+            }
+          }
+        },
+        nextFunctionDisabled: {
+          conditions: {
+            doesMatch: [{
+              matchesAll: {
+                'event.foo.bar': 3
+              }
+            }],
+            doesNotMatch: [{
+              matchesAll: {
+                'event.foo.bar': 7
+              }
+            }]
+          },
+          action: 'invokeFunction',
+          params: {
+            FunctionName: { ref: 'stage.one' },
+            Payload: { helper: 'one' ,
+              params: {
+                a: { ref: 'stage.one'},
+                b: { value: 1},
+              }
+            }
+          }
+        }
+      }
+    },
+  },
+  event: {
+    foo: {
+      bar: 4
+    }
+  },
+  onComplete: (finishedSteps) => expect(finishedSteps.length).toEqual(3),
+}
+
+generateTests('Basic', [test1, test2, test3, test4, test5, test6, test7])
