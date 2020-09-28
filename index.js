@@ -20,27 +20,7 @@ const info = _.partial(log, 'INFO')
 const warn = _.partial(log, 'WARN')
 const error = _.partial(log, 'ERROR')
 
-function testConditionSet(name, conditions, input) {
-  return _(conditions).map((condition) => testCondition(condition, input)).some()
-}
-
 const conditionTesters = {
-  matchesAll: (matches, input) => _(matches).map((v, k) => {
-    trace(`[ att: ${k} ] [ input: ${JSON.stringify(input)} ] [ val: ${_.get(input, k)} ] [ expect: ${v} ]`)
-    return _.get(input, k) === v
-  }).every(),
-  matchesAny: (matches, input) => _(matches).map((v, k) => _.get(input, k) === v).some(),
-  isEmptyList: (prop, input) => _.isArray(_.get(input, prop)) && _.get(input, prop).length === 0,
-  isNonEmptyList: (prop, input) => _.isArray(_.get(input, prop)) && _.get(input, prop).length !== 0
-}
-
-function testCondition(condition, input) {
-  return _(conditionTesters).map((v, k) => {
-    const relevantCondition = _.get(condition, k)
-    result = v(relevantCondition, input)
-    trace(`[ condition: ${JSON.stringify(condition)} ] [ part: ${k} ] [ relevant: ${!!relevantCondition} ] [ result: ${!relevantCondition || result} ]`)
-    return (!relevantCondition || result)
-  }).every()
 }
 
 // If this signature changes, remember to update the test harness or tests will break.
@@ -51,16 +31,23 @@ function transformInput(stage, stageConfig, processParams) {
 
 const builtInTransformations = {
   uuid: () => uuid.v4(),
+  matches: ({a, b}) => a === b,
+  isEmptyList: ({list}) => _.isArray(list) && list.length === 0,
+  isNonEmptyList: ({list}) => _.isArray(list) && list.length !== 0
 }
 
-function processParams(helperFunctions, input, config) {
+function processParams(helperFunctions, input, params) {
   transformers = {...builtInTransformations, ...helperFunctions}
   const output = {}
-  _.each(config, (v, k) => {
+  _.each(params, (v, k) => {
     if (v.value) {
       output[k] = v.value
     } else if (v.ref) {
       output[k] = _.get(input, v.ref)
+    } else if (v.every) {
+      output[k] = _(processParams(helperFunctions, input, v.every)).values().every()
+    } else if (v.some) {
+      output[k] = _(processParams(helperFunctions, input, v.some)).values().some()
     } else if (v.all) {
       output[k] = processParams(helperFunctions, input, v.all)
     } else if (v.helper) {
@@ -117,8 +104,7 @@ function generateDependencies(input, config, transformers, mergedDependencyBuild
     return name
   }
   _.each(config, (desc, name) => {
-    trace(`5 ${JSON.stringify(input)}`)
-    if (testEvent(input, desc.conditions)) {
+    if (testEvent(desc.conditions, _.partial(processParams, transformers, input))) {
       builder = mergedDependencyBuilders[desc.action]
       return builder(
         processParams(transformers, input, desc.params),
@@ -131,13 +117,8 @@ function generateDependencies(input, config, transformers, mergedDependencyBuild
   return dependencies
 }
 
-const testEvent = function(input, conditions) {
-  return !conditions || _(conditions).map((v, k) => {
-    trace(`Testing conditionSet ${k} with input ${JSON.stringify(input)}`)
-    const result = testConditionSet(k, v, input)
-    trace(`Tested conditionSet ${k}. result: ${result}`)
-    return result
-  }).some()
+const testEvent = function(conditions, processParams) {
+  return !conditions || _(processParams(conditions)).values().every()
 }
 
 // If this signature changes, remember to update the test harness or tests will break.
@@ -185,7 +166,7 @@ function createTask(config, helperFunctions, dependencyHelpers) {
         }
       }, 0)
     }
-    if (testEvent({event, context}, config.conditions)) {
+    if (config.conditions, _.partial(processParams, helperFunctions, {event, context})) {
       debug(`event ${event ? JSON.stringify(event) : event} matched for processing`)
       async.waterfall([
         performIntro,

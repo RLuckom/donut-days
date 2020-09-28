@@ -106,19 +106,21 @@ const test4 = {
   },
   config: {
     conditions: {
-      doesNotMatch: [{
-        matchesAll: {
-          'event.foo.bar': 4
+      doesNotMatch: {
+        helper: 'matches',
+        params: {
+          a: {ref: 'event.foo.bar'},
+          b: {value: 4},
         }
-      }]
-    }
-  },
-  event: {
-    foo: {
-      bar: 7
-    }
-  },
-  onComplete: (finishedSteps) => expect(finishedSteps.length).toEqual(0),
+      }
+    },
+    event: {
+      foo: {
+        bar: 7
+      }
+    },
+    onComplete: (finishedSteps) => expect(finishedSteps.length).toEqual(0),
+  }
 }
 
 const test5 = {
@@ -209,11 +211,13 @@ const test6 = {
       dependencies: {
         nextFunction: {
           conditions: {
-            doesMatch: [{
-              matchesAll: {
-                'intro.vars.one': 4
+            doesMatch: {
+              helper: 'matches',
+              params: {
+                a: {ref: 'intro.vars.one'},
+                b: {value: 4}
               }
-            }],
+            }
           },
           action: 'exploranda',
           params: {
@@ -276,11 +280,13 @@ const test7 = {
   },
   config: {
     conditions: {
-      doesMatchCopy: [{
-        matchesAll: {
-          'event.foo.bar': 4
+      doesMatchCopy: {
+        helper: "matches",
+        params: {
+          a: {ref: "event.foo.bar"},
+          b: {value: 4}
         }
-      }]
+      }
     },
     intro: {
       transformers: {
@@ -294,16 +300,24 @@ const test7 = {
       dependencies: {
         nextFunctionEnabled: {
           conditions: {
-            doesMatch: [{
-              matchesAll: {
-                'event.foo.bar': 4
+            doesMatch: {
+              some: {
+                doesMatch: {
+                  helper: "matches",
+                  params: {
+                    a: {ref: "event.foo.bar"},
+                    b: {value: 4}
+                  }
+                },
+                doesNotMatch: {
+                  helper: "matches",
+                  params: {
+                    a: {ref: "event.foo.bar"},
+                    b: {value: 5}
+                  }
+                }
               }
-            }],
-            doesNotMatch: [{
-              matchesAll: {
-                'event.foo.bar': 7
-              }
-            }]
+            }
           },
           action: 'invokeFunction',
           params: {
@@ -318,16 +332,24 @@ const test7 = {
         },
         nextFunctionDisabled: {
           conditions: {
-            doesMatch: [{
-              matchesAll: {
-                'event.foo.bar': 3
+            doesNotMatch: {
+              every: {
+                doesMatch: {
+                  helper: "matches",
+                  params: {
+                    a: {ref: "event.foo.bar"},
+                    b: {value: 4}
+                  }
+                },
+                doesNotMatch: {
+                  helper: "matches",
+                  params: {
+                    a: {ref: "event.foo.bar"},
+                    b: {value: 5}
+                  }
+                }
               }
-            }],
-            doesNotMatch: [{
-              matchesAll: {
-                'event.foo.bar': 7
-              }
-            }]
+            }
           },
           action: 'invokeFunction',
           params: {

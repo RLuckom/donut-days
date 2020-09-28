@@ -2,25 +2,26 @@ const _ = require('lodash')
 const rewire = require('rewire')
 const main = rewire('../../index.js')
 
-function makeExplorandaMock(expectations) {
+function makeExplorandaMock(validators) {
   let calls = 0
   const keys = ['intro', 'main', 'outro']
   const finishedSteps = []
-  function reporter(expectation) {
+  function reporter(validator) {
     return {
       report: (f) => setTimeout(f, 0)
     }
   }
   return {
     Gopher: (dependencies) => {
-      const expectation = expectations[keys[calls]]
+      const validator = validators[keys[calls]]
       if (process.env.DONUT_DAYS_DEBUG) {
-        console.log(`Testing expectations for ${keys[calls]}`)
+        console.log(`Testing validators for ${keys[calls]}`)
       }
       finishedSteps.push(calls)
       calls++
-      validateDependencies(dependencies, expectation.dependencies)
-      return reporter(expectation)
+      console.log(`deps: ${JSON.stringify(dependencies)} keys: ${JSON.stringify(_.keys(validator.dependencies))}`)
+      validateDependencies(dependencies, validator.dependencies)
+      return reporter(validator)
     },
     dataSources: {AWS : { lambda: {invoke: true }}},
     finishedSteps
@@ -35,13 +36,16 @@ function validateDependencies(dependencies, depGraphSpec) {
     }
     expect(result).toBeTruthy()
   })
+    if (process.env.DONUT_DAYS_DEBUG) {
+      console.log(`Expecting ${JSON.stringify(dependencies)} to have the keys: ${JSON.stringify(_.keys(depGraphSpec))}`)
+    }
   expect(_.keys(depGraphSpec).length).toEqual(_.keys(dependencies).length)
 }
 
 function newTransformInput(original, validators) {
   return function(stage, stageConfig, processParams) {
     const result = original(stage, stageConfig, processParams)
-    stageValidators = _.get(validators, [stage, 'dependencyInput'])
+    const stageValidators = _.get(validators, [stage, 'dependencyInput'])
     validateDependencies(result, stageValidators)
     expect(_.keys(result).length).toEqual(_.keys(stageValidators).length)
     return result
