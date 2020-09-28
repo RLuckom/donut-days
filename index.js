@@ -81,15 +81,17 @@ function transformInput(transformations, stage, config, source) {
   return newInput
 }
 
-function processParams(input, config, helperFunctions) {
+function processParams(helperFunctions, input, config) {
   const output = {}
   _.each(config, (v, k) => {
     if (v.value) {
       output[k] = v.value
     } else if (v.ref) {
       output[k] = _.get(input, v.ref)
+    } else if (v.all) {
+      output[k] = processParams(helperFunctions, input, v.all)
     } else if (v.helper) {
-      output[k] = helperFunctions[v.helper](processParams(input, v.params, helperFunctions))
+      output[k] = helperFunctions[v.helper](processParams(helperFunctions, input, v.params))
     }
   })
   return output
@@ -110,6 +112,12 @@ function dependencyBuilders(helpers) {
               value: params.Payload
             }
           }
+        })
+      },
+      exploranda: (params, addDependency, getDependencyName, processParams) => {
+        addDependency(params.dependencyName, {
+          accessSchema: _.get(exploranda, params.accessSchema),
+          params: processParams(params.params)
         })
       },
       storeItem: (params, addDependency) => {
@@ -139,9 +147,10 @@ function generateDependencies(input, config, transformers, mergedDependencyBuild
     if (testEvent(input, desc.conditions)) {
       builder = mergedDependencyBuilders[desc.action]
       return builder(
-        processParams(input, desc.params, transformers),
+        processParams(transformers, input, desc.params),
         _.partial(addDependency, name),
-        _.partial(getQualifiedDepName, name)
+        _.partial(getQualifiedDepName, name),
+        _.partial(processParams, transformers, input)
       )
     }
   })

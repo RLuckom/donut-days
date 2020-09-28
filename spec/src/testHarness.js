@@ -31,7 +31,7 @@ function validateDependencies(dependencies, depGraphSpec) {
   _.map(depGraphSpec, (v, k) => {
     const result = v(dependencies[k])
     if (process.env.DONUT_DAYS_DEBUG) {
-      console.log(`Testing ${k}: ${dependencies[k]}. result: ${result}`)
+      console.log(`Testing ${k}: ${JSON.stringify(dependencies[k])}. result: ${result}`)
     }
     expect(result).toBeTruthy()
   })

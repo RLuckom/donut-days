@@ -200,7 +200,7 @@ const test6 = {
         one: (n) => n === 4
       },
       dependencies: {
-        nextFunction_invoke: (dep) => {
+        nextFunction_nextFunction: (dep) => {
           console.log(JSON.stringify(dep))
           return (dep.accessSchema && dep.params.FunctionName.value === 4
                   && dep.params.Payload.value === 5)
@@ -235,18 +235,28 @@ const test6 = {
       },
       dependencies: {
         nextFunction: {
-          action: 'invokeFunction',
+          action: 'exploranda',
           params: {
-            FunctionName: { ref: 'stage.one' },
-            Payload: { helper: 'one' ,
-              params: {
-                a: { ref: 'stage.one'},
-                b: { value: 1},
+            dependencyName: { value: 'nextFunction' },
+            accessSchema: { value: 'dataSources.AWS.lambda.invoke'},
+            params: {value: {
+              FunctionName: {all: {
+                value: { ref: 'stage.one'}
+              }},
+              Payload: {all: {
+                value: { helper: 'one' ,
+                  params: {
+                    a: { ref: 'stage.one'},
+                    b: { value: 1},
+                  }
+                }
+              }
               }
             }
+            }
           }
-        }
-      }
+        },
+      },
     },
   },
   event: {
