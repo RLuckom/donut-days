@@ -117,6 +117,7 @@ function generateDependencies(input, config, transformers, mergedDependencyBuild
     return name
   }
   _.each(config, (desc, name) => {
+    trace(`5 ${JSON.stringify(input)}`)
     if (testEvent(input, desc.conditions)) {
       builder = mergedDependencyBuilders[desc.action]
       return builder(
@@ -132,7 +133,7 @@ function generateDependencies(input, config, transformers, mergedDependencyBuild
 
 const testEvent = function(input, conditions) {
   return !conditions || _(conditions).map((v, k) => {
-    trace(`Testing conditionSet ${k}`)
+    trace(`Testing conditionSet ${k} with input ${JSON.stringify(input)}`)
     const result = testConditionSet(k, v, input)
     trace(`Tested conditionSet ${k}. result: ${result}`)
     return result
@@ -162,17 +163,17 @@ function createTask(config, helperFunctions, dependencyHelpers) {
     function performIntro(callback) {
       const {vars, dependencies} = makeIntroDependencies(event, context)
       const reporter = exploranda.Gopher(dependencies);
-      reporter.report((e, n) => callback(e, {stage: vars, results: n}));
+      reporter.report((e, n) => callback(e, {vars, results: n}));
     }
     function performMain(intro, callback) {
       const {vars, dependencies} = makeMainDependencies(event, context, intro)
       const reporter = exploranda.Gopher(dependencies);
-      reporter.report((e, n) => callback(e, intro, {stage: vars, results: n}));
+      reporter.report((e, n) => callback(e, intro, {vars, results: n}));
     }
     function performOutro(intro, main, callback) {
       const {vars, dependencies} = makeOutroDependencies(event, context, intro, main)
       const reporter = exploranda.Gopher(dependencies);
-      reporter.report((e, n) => callback(e, intro, main, {stage: vars, results: n}));
+      reporter.report((e, n) => callback(e, intro, main, {vars, results: n}));
     }
     function performCleanup(intro, main, outro, callback) {
       setTimeout(() => {

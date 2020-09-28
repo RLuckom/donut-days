@@ -143,7 +143,7 @@ const test5 = {
         matchesAll: {
           'event.foo.bar': 4
         }
-      }]
+      }],
     },
     intro: {
       transformers: {
@@ -208,6 +208,13 @@ const test6 = {
       },
       dependencies: {
         nextFunction: {
+          conditions: {
+            doesMatch: [{
+              matchesAll: {
+                'intro.vars.one': 4
+              }
+            }],
+          },
           action: 'exploranda',
           params: {
             dependencyName: { value: 'nextFunction' },
