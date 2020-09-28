@@ -20,9 +20,6 @@ const test1 = {
   },
   config: {},
   event: {},
-  makeDependencies: () => {
-    return {}
-  }
 }
 
 const test2 = {
@@ -125,16 +122,13 @@ const test4 = {
 }
 
 const test5 = {
-  name: 'condition matches 2',
+  name: 'test5',
   validators: {
     intro: {
       dependencyInput: {
         one: (n) => n === 4,
         mediaId: (m) => uuid.validate(m)
       },
-      dependencies: {
-        mediaId_stored: (dep) => uuid.validate(dep.accessSchema.transformation())
-      }
     },
     main: {
     },
@@ -153,22 +147,10 @@ const test5 = {
     },
     intro: {
       transformers: {
-        copyFooBar: [{
-          copy: {
-            'event.foo.bar': 'one'
-          }
-        }],
-        mediaId: [{
-          uuid: ['mediaId']
-        }],
+        one: {ref: 'event.foo.bar'},
+        mediaId: {helper: 'uuid'},
       },
       dependencies: {
-        mediaId: {
-          action: 'storeItem',
-          params: {
-            item: { ref: 'stage.mediaId' },
-          }
-        }
       }
     }
   },
@@ -201,7 +183,6 @@ const test6 = {
       },
       dependencies: {
         nextFunction_nextFunction: (dep) => {
-          console.log(JSON.stringify(dep))
           return (dep.accessSchema && dep.params.FunctionName.value === 4
                   && dep.params.Payload.value === 5)
         }
@@ -218,20 +199,12 @@ const test6 = {
     },
     intro: {
       transformers: {
-        copyFooBar: [{
-          copy: {
-            'event.foo.bar': 'one'
-          }
-        }]
+        one: {ref: 'event.foo.bar'},
       },
     },
     outro: {
       transformers: {
-        copyFooBar: [{
-          copy: {
-            'event.foo.bar': 'one'
-          }
-        }]
+        one: {ref: 'event.foo.bar'},
       },
       dependencies: {
         nextFunction: {
@@ -288,7 +261,6 @@ const test7 = {
       },
       dependencies: {
         nextFunctionEnabled_invoke: (dep) => {
-          console.log(JSON.stringify(dep))
           return (_.get(dep, 'accessSchema') && dep.params.FunctionName.value === 4
                   && dep.params.Payload.value === 5)
         }
@@ -305,20 +277,12 @@ const test7 = {
     },
     intro: {
       transformers: {
-        copyFooBar: [{
-          copy: {
-            'event.foo.bar': 'one'
-          }
-        }]
+        one: {ref: 'event.foo.bar'},
       },
     },
     outro: {
       transformers: {
-        copyFooBar: [{
-          copy: {
-            'event.foo.bar': 'one'
-          }
-        }]
+        one: {ref: 'event.foo.bar'},
       },
       dependencies: {
         nextFunctionEnabled: {

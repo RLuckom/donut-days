@@ -9,7 +9,7 @@ const apiConfig = {
 }
 
 function log(level, message) {
-  if (process.env.DONUT_DAYS_DEBUG || level === 'ERROR') {
+  if (process.env.DONUT_DAYS_DEBUG || level === 'ERROR' || level === "WARN") {
     console.log(`${level}\t${message}`)
   }
 }
@@ -17,6 +17,7 @@ function log(level, message) {
 const trace = _.partial(log, 'TRACE')
 const debug = _.partial(log, 'DEBUG')
 const info = _.partial(log, 'INFO')
+const warn = _.partial(log, 'WARN')
 const error = _.partial(log, 'ERROR')
 
 function testConditionSet(name, conditions, input) {
@@ -33,19 +34,6 @@ const conditionTesters = {
   isNonEmptyList: (prop, input) => _.isArray(_.get(input, prop)) && _.get(input, prop).length !== 0
 }
 
-function stageTransformers(helpers) {
-  return {
-    ...{
-      uuid: (uuidConfig, source, dest) => _.each(uuidConfig, (v) => { dest[v] = uuid.v4() }),
-        copy: (copyConfig, source, dest) => _.each(copyConfig, (v, k) => {
-        trace(`${v}, ${k}, ${JSON.stringify(source)}, ${JSON.stringify(dest)}`)
-        _.set(dest, v, _.get(source, k))
-      })
-    },
-    ...(helpers || {})
-  }
-}
-
 function testCondition(condition, input) {
   return _(conditionTesters).map((v, k) => {
     const relevantCondition = _.get(condition, k)
@@ -55,33 +43,18 @@ function testCondition(condition, input) {
   }).every()
 }
 
-function transformStage(transformations, transformationConfig, source, dest) {
-  return _(transformations).each((v, k) => {
-    _.each(transformationConfig, (transformation) => {
-      const relevantTransformation = _.get(transformation, k)
-      trace(`performing ${JSON.stringify(transformation)} : ${k} ${JSON.stringify(relevantTransformation)}`)
-      if (relevantTransformation) {
-        trace(`[ transform: ${k} ]`)
-        v(relevantTransformation, source, dest)
-      }
-    })
-  })
+// If this signature changes, remember to update the test harness or tests will break.
+function transformInput(stage, stageConfig, processParams) {
+  trace(`making input for ${stage} with ${JSON.stringify(stageConfig)}`)
+  return processParams(stageConfig)
 }
 
-// If this signature changes, remember to update the test harness or tests will break.
-function transformInput(transformations, stage, config, source) {
-  const stageConfig = _.get(config, [stage, 'transformers'])
-  trace(`making input for ${stage} with ${JSON.stringify(stage)}`)
-  const newInput = {}
-  _.each(stageConfig, (v, k) => {
-    trace(`transforming ${k} with config ${JSON.stringify(v)}`) 
-    transformStage(transformations, v, source, newInput)
-  })
-  trace(`input for ${stage}: ${JSON.stringify(newInput)}`)
-  return newInput
+const builtInTransformations = {
+  uuid: () => uuid.v4(),
 }
 
 function processParams(helperFunctions, input, config) {
+  transformers = {...builtInTransformations, ...helperFunctions}
   const output = {}
   _.each(config, (v, k) => {
     if (v.value) {
@@ -91,7 +64,7 @@ function processParams(helperFunctions, input, config) {
     } else if (v.all) {
       output[k] = processParams(helperFunctions, input, v.all)
     } else if (v.helper) {
-      output[k] = helperFunctions[v.helper](processParams(helperFunctions, input, v.params))
+      output[k] = transformers[v.helper](processParams(helperFunctions, input, v.params))
     }
   })
   return output
@@ -168,20 +141,22 @@ const testEvent = function(input, conditions) {
 
 // If this signature changes, remember to update the test harness or tests will break.
 function createTask(config, helperFunctions, dependencyHelpers) {
-  const transformers = stageTransformers(helperFunctions)
   const mergedDependencyBuilders = dependencyBuilders(dependencyHelpers)
   const makeIntroDependencies = function(event, context) {
+    const stageConfig = _.get(config, ['intro', 'transformers'])
     trace('intro')
-    const input = transformInput(transformers, 'intro', config, {event, context})
-    return {vars: input, dependencies: generateDependencies({stage: input, event, context}, _.get(config, 'intro.dependencies'), transformers, mergedDependencyBuilders)}
+    const input = transformInput("intro", stageConfig, _.partial(processParams, helperFunctions, {event, context}))
+    return {vars: input, dependencies: generateDependencies({stage: input, event, context}, _.get(config, 'intro.dependencies'), helperFunctions, mergedDependencyBuilders)}
   }
   const makeMainDependencies = function(event, context, intro) {
-    const input = transformInput(transformers, 'main', config, {event, context, intro})
-    return {vars: input, dependencies: generateDependencies({stage: input, event, context, intro}, _.get(config, 'main.dependencies'), transformers, mergedDependencyBuilders)}
+    const stageConfig = _.get(config, ['main', 'transformers'])
+    const input = transformInput("main", stageConfig, _.partial(processParams, helperFunctions, {event, context, intro}))
+    return {vars: input, dependencies: generateDependencies({stage: input, event, context, intro}, _.get(config, 'main.dependencies'), helperFunctions, mergedDependencyBuilders)}
   }
   const makeOutroDependencies = function(event, context, intro, main) {
-    const input = transformInput(transformers, 'outro', config, {event, context, intro, main})
-    return {vars: input, dependencies: generateDependencies({stage: input, event, context, intro, main}, _.get(config, 'outro.dependencies'), transformers, mergedDependencyBuilders)}
+    const stageConfig = _.get(config, ['outro', 'transformers'])
+    const input = transformInput("outro", stageConfig, _.partial(processParams, helperFunctions, {event, context, intro, main}))
+    return {vars: input, dependencies: generateDependencies({stage: input, event, context, intro, main}, _.get(config, 'outro.dependencies'), helperFunctions, mergedDependencyBuilders)}
   }
   return function(event, context, callback) {
     function performIntro(callback) {
@@ -202,7 +177,8 @@ function createTask(config, helperFunctions, dependencyHelpers) {
     function performCleanup(intro, main, outro, callback) {
       setTimeout(() => {
         try {
-        callback(null, transformInput('cleanup', config, {event, context, intro, main, outro}))
+    const stageConfig = _.get(config, ['cleanup', 'transformers'])
+        callback(null, transformInput('cleanup', stageConfig,  _.partial(processParams, helperFunctions, {event, context, intro, main, outro})))
         } catch(e) {
           callback(e)
         }
