@@ -23,9 +23,15 @@ const test1 = {
 }
 
 const test2 = {
-  name: 'main string dep',
+  name: 'test2',
   validators: {
     intro: {
+      dependencyInput: {
+        eight: (n) => n === 8,
+        rest: (n) => _.isEqual(n, [2, 3, 4, 5]),
+        all: (n) => _.isEqual(n, [1, 2, 3, 4, 5]),
+        middle: (n) => _.isEqual(n, [2, 3, 4]),
+      },
       dependencies: {
       }
     },
@@ -40,6 +46,32 @@ const test2 = {
     }
   },
   config: {
+    intro: {
+      transformers: {
+        eight: {or: [{ref: 'event.foo.bar'}, {value: 8}]},
+        rest: {
+          helper: "slice",
+          params: {
+            list: {ref: 'event.list'},
+            start: {value: 1}
+          }
+        },
+        all: {
+          helper: "slice",
+          params: {
+            list: {ref: 'event.list'},
+          }
+        },
+        middle: {
+          helper: "slice",
+          params: {
+            list: {ref: 'event.list'},
+            start: {value: 1},
+            end: {value: 4},
+          }
+        },
+      },
+    },
     main: {
       dependencies: {
         one: {
@@ -48,7 +80,9 @@ const test2 = {
       }
     }
   },
-  event: {},
+  event: {
+    list: [1, 2, 3, 4, 5],
+  },
   dependencyHelpers: {
     one: (params, addDependency) => addDependency('two', 'three') 
   }

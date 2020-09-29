@@ -31,6 +31,7 @@ const builtInTransformations = {
   matches: ({a, b}) => a === b,
   isEmptyList: ({list}) => _.isArray(list) && list.length === 0,
   isNonEmptyList: ({list}) => _.isArray(list) && list.length !== 0,
+  slice: ({list, start, end}) => _.slice(list, start, end),
   qualifiedDependencyName: ({configStepName, dependencyName}) => getQualifiedDepName(configStepName, dependencyName),
 }
 
@@ -38,21 +39,27 @@ function processParams(helperFunctions, input, params) {
   transformers = {...builtInTransformations, ...helperFunctions}
   const output = {}
   _.each(params, (v, k) => {
-    if (v.value) {
-      output[k] = v.value
-    } else if (v.ref) {
-      output[k] = _.get(input, v.ref)
-    } else if (v.every) {
-      output[k] = _(processParams(helperFunctions, input, v.every)).values().every()
-    } else if (v.some) {
-      output[k] = _(processParams(helperFunctions, input, v.some)).values().some()
-    } else if (v.all) {
-      output[k] = processParams(helperFunctions, input, v.all)
-    } else if (v.helper) {
-      output[k] = transformers[v.helper](processParams(helperFunctions, input, v.params))
-    }
+    output[k] = processParamValue(helperFunctions, input, v)
   })
   return output
+}
+
+function processParamValue(helperFunctions, input, value) {
+  if (value.value) {
+    return value.value
+  } else if (value.ref) {
+    return _.get(input, value.ref)
+  } else if (value.every) {
+    return _(processParams(helperFunctions, input, value.every)).values().every()
+  } else if (value.some) {
+    return _(processParams(helperFunctions, input, value.some)).values().some()
+  } else if (value.or) {
+    return _(value.or).map(_.partial(processParamValue, helperFunctions, input)).find()
+  } else if (value.all) {
+    return processParams(helperFunctions, input, value.all)
+  } else if (value.helper) {
+    return transformers[value.helper](processParams(helperFunctions, input, value.params))
+  }
 }
 
 function dependencyBuilders(helpers) { 
