@@ -20,9 +20,6 @@ const info = _.partial(log, 'INFO')
 const warn = _.partial(log, 'WARN')
 const error = _.partial(log, 'ERROR')
 
-const conditionTesters = {
-}
-
 // If this signature changes, remember to update the test harness or tests will break.
 function transformInput(stage, stageConfig, processParams) {
   trace(`making input for ${stage} with ${JSON.stringify(stageConfig)}`)
@@ -33,7 +30,8 @@ const builtInTransformations = {
   uuid: () => uuid.v4(),
   matches: ({a, b}) => a === b,
   isEmptyList: ({list}) => _.isArray(list) && list.length === 0,
-  isNonEmptyList: ({list}) => _.isArray(list) && list.length !== 0
+  isNonEmptyList: ({list}) => _.isArray(list) && list.length !== 0,
+  qualifiedDependencyName: ({configStepName, dependencyName}) => getQualifiedDepName(configStepName, dependencyName),
 }
 
 function processParams(helperFunctions, input, params) {
@@ -93,11 +91,12 @@ function dependencyBuilders(helpers) {
   }
 }
 
+function getQualifiedDepName(prefix, depName) {
+  return `${prefix}_${depName}`
+}
+
 function generateDependencies(input, config, transformers, mergedDependencyBuilders) {
   const dependencies = {}
-  function getQualifiedDepName(prefix, depName) {
-    return `${prefix}_${depName}`
-  }
   function addDependency(prefix, depName, dep) {
     const name = getQualifiedDepName(prefix, depName)
     dependencies[name] = dep
