@@ -83,7 +83,7 @@ function dependencyBuilders(helpers) {
         addDependency(params.dependencyName, {
           accessSchema: _.get(exploranda, params.accessSchema),
           params: processParams(params.params)
-        })
+        }, params.dryRun)
       },
       storeItem: (params, addDependency) => {
         addDependency('stored', {
@@ -104,9 +104,14 @@ function getQualifiedDepName(prefix, depName) {
 
 function generateDependencies(input, config, transformers, mergedDependencyBuilders) {
   const dependencies = {}
-  function addDependency(prefix, depName, dep) {
+  function addDependency(prefix, depName, dep, dryRun) {
     const name = getQualifiedDepName(prefix, depName)
-    dependencies[name] = dep
+    if (dryRun) {
+      dep.accessSchema = {dataSource: _.get(dep, 'accessSchema.dataSource'), name: _.get(dep, 'accessSchema.name')}
+      console.log(`Would add dependency ${name} consisting of ${JSON.stringify(dep)}`)
+    } else {
+      dependencies[name] = dep
+    }
     return name
   }
   _.each(config, (desc, name) => {

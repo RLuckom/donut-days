@@ -274,6 +274,38 @@ const test6 = {
             }
           }
         },
+        nextFunctionDryRun: {
+          conditions: {
+            doesMatch: {
+              helper: 'matches',
+              params: {
+                a: {ref: 'intro.vars.one'},
+                b: {value: 4}
+              }
+            }
+          },
+          action: 'exploranda',
+          params: {
+            dependencyName: { value: 'nextFunction' },
+            dryRun: { value: true },
+            accessSchema: { value: 'dataSources.AWS.lambda.invoke'},
+            params: {value: {
+              FunctionName: {all: {
+                value: { ref: 'stage.one'}
+              }},
+              Payload: {all: {
+                value: { helper: 'one' ,
+                  params: {
+                    a: { ref: 'stage.one'},
+                    b: { value: 1},
+                  }
+                }
+              }
+              }
+            }
+            }
+          }
+        },
       },
     },
   },
