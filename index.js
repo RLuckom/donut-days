@@ -29,6 +29,7 @@ function transformInput(stage, stageConfig, processParams) {
 const builtInTransformations = {
   uuid: () => uuid.v4(),
   matches: ({a, b}) => a === b,
+  env: ({varName}) => process.env[varName],
   isEmptyList: ({list}) => _.isArray(list) && list.length === 0,
   isNonEmptyList: ({list}) => _.isArray(list) && list.length !== 0,
   slice: ({list, start, end}) => _.slice(list, start, end),
@@ -40,6 +41,7 @@ function processParams(helperFunctions, input, params) {
   const output = {}
   _.each(params, (v, k) => {
     output[k] = processParamValue(helperFunctions, input, v)
+    trace(`Processed param [ name: ${k} ] [ plan: ${v ? JSON.stringify(v) : v} ] [ input: ${_.isObjectLike(input) ? JSON.stringify(input) : input} ] [ result: ${_.isObjectLike(output[k]) ? JSON.stringify(k) : k} ]`)
   })
   return output
 }
@@ -51,6 +53,8 @@ function processParamValue(helperFunctions, input, value) {
     return _.get(input, value.ref)
   } else if (value.every) {
     return _(processParams(helperFunctions, input, value.every)).values().every()
+  } else if (value.not) {
+    return !processParams(helperFunctions, input, value.not)
   } else if (value.some) {
     return _(processParams(helperFunctions, input, value.some)).values().some()
   } else if (value.or) {
@@ -107,15 +111,14 @@ function generateDependencies(input, config, transformers, mergedDependencyBuild
   function addDependency(prefix, depName, dep, dryRun) {
     const name = getQualifiedDepName(prefix, depName)
     if (dryRun) {
-      dep.accessSchema = {dataSource: _.get(dep, 'accessSchema.dataSource'), name: _.get(dep, 'accessSchema.name')}
-      console.log(`Would add dependency ${name} consisting of ${JSON.stringify(dep)}`)
+      console.log(`Would add dependency ${name} consisting of ${JSON.stringify(stringableDependency(dep))}`)
     } else {
       dependencies[name] = dep
     }
     return name
   }
   _.each(config, (desc, name) => {
-    if (testEvent(desc.conditions, _.partial(processParams, transformers, input))) {
+    if (testEvent(name, desc.conditions, _.partial(processParams, transformers, input))) {
       builder = mergedDependencyBuilders[desc.action]
       return builder(
         processParams(transformers, input, desc.params),
@@ -128,8 +131,23 @@ function generateDependencies(input, config, transformers, mergedDependencyBuild
   return dependencies
 }
 
-const testEvent = function(conditions, processParams) {
+function stringableDependency(dep) {
+  const stringable = _.cloneDeep(dep)
+  stringable.accessSchema = {dataSource: _.get(dep, 'accessSchema.dataSource'), name: _.get(dep, 'accessSchema.name')}
+  return stringable
+}
+
+
+const testEvent = function(name, conditions, processParams) {
+  trace(`Testing conditions for ${name}: ${conditions ? JSON.stringify(conditions) : conditions}`)
   return !conditions || _(processParams(conditions)).values().every()
+}
+
+function logStage(stage, vars, dependencies, stage) {
+  trace(`${stage}: [ vars: ${_.isObjectLike(vars) ? JSON.stringify(vars) : vars} ] [ deps: ${JSON.stringify(_.reduce(dependencies, (acc, v, k) => {
+    acc[k] = stringableDependency(v)
+    return acc
+  }, {}))} ]`)
 }
 
 // If this signature changes, remember to update the test harness or tests will break.
@@ -154,16 +172,19 @@ function createTask(config, helperFunctions, dependencyHelpers) {
   return function(event, context, callback) {
     function performIntro(callback) {
       const {vars, dependencies} = makeIntroDependencies(event, context)
+      logStage('intro', vars, dependencies)
       const reporter = exploranda.Gopher(dependencies);
       reporter.report((e, n) => callback(e, {vars, results: n}));
     }
     function performMain(intro, callback) {
       const {vars, dependencies} = makeMainDependencies(event, context, intro)
+      logStage('main', vars, dependencies)
       const reporter = exploranda.Gopher(dependencies);
       reporter.report((e, n) => callback(e, intro, {vars, results: n}));
     }
     function performOutro(intro, main, callback) {
       const {vars, dependencies} = makeOutroDependencies(event, context, intro, main)
+      logStage('outro', vars, dependencies)
       const reporter = exploranda.Gopher(dependencies);
       reporter.report((e, n) => callback(e, intro, main, {vars, results: n}));
     }

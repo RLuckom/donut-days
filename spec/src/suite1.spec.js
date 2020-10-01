@@ -31,13 +31,14 @@ const test2 = {
         rest: (n) => _.isEqual(n, [2, 3, 4, 5]),
         all: (n) => _.isEqual(n, [1, 2, 3, 4, 5]),
         middle: (n) => _.isEqual(n, [2, 3, 4]),
+        not: (n) => n === false,
       },
       dependencies: {
       }
     },
     main: {
       dependencies: {
-        one_two: (n) => n === 'three'
+        one_two: (n) => n === 'three',
       }
     },
     outro: {
@@ -48,6 +49,7 @@ const test2 = {
   config: {
     intro: {
       transformers: {
+        not: {not: {value: 6} },
         eight: {or: [{ref: 'event.foo.bar'}, {value: 8}]},
         rest: {
           helper: "slice",
