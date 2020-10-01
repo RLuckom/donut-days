@@ -33,6 +33,8 @@ const builtInTransformations = {
   isEmptyList: ({list}) => _.isArray(list) && list.length === 0,
   isNonEmptyList: ({list}) => _.isArray(list) && list.length !== 0,
   slice: ({list, start, end}) => _.slice(list, start, end),
+  toJson: (p) => JSON.stringify(p),
+  fromJson: ({string}) => JSON.parse(string),
   qualifiedDependencyName: ({configStepName, dependencyName}) => getQualifiedDepName(configStepName, dependencyName),
 }
 

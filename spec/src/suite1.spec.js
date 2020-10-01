@@ -32,6 +32,8 @@ const test2 = {
         all: (n) => _.isEqual(n, [1, 2, 3, 4, 5]),
         middle: (n) => _.isEqual(n, [2, 3, 4]),
         not: (n) => n === true,
+        toJson: (n) => _.isEqual(JSON.parse(n), {a: 6}),
+        fromJson: (n) => _.isEqual(n, {a: 6}),
       },
       dependencies: {
       }
@@ -49,6 +51,16 @@ const test2 = {
   config: {
     intro: {
       transformers: {
+        toJson: {helper: "toJson",
+          params: {
+            a: {value: 6}
+          },
+        },
+        fromJson: {helper: "fromJson",
+          params: {
+            string: {value: '{"a": 6}'}
+          },
+        },
         not: {not: {ref: 6} },
         eight: {or: [{ref: 'event.foo.bar'}, {value: 8}]},
         rest: {
