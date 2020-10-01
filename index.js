@@ -41,7 +41,7 @@ function processParams(helperFunctions, input, params) {
   const output = {}
   _.each(params, (v, k) => {
     output[k] = processParamValue(helperFunctions, input, v)
-    trace(`Processed param [ name: ${k} ] [ plan: ${v ? JSON.stringify(v) : v} ] [ input: ${_.isObjectLike(input) ? JSON.stringify(input) : input} ] [ result: ${_.isObjectLike(output[k]) ? JSON.stringify(k) : k} ]`)
+    trace(`Processed param [ name: ${k} ] [ plan: ${v ? JSON.stringify(v) : v} ] [ input: ${_.isObjectLike(input) ? JSON.stringify(input) : input} ] [ result: ${_.isObjectLike(output[k]) ? JSON.stringify(output[k]) : output[k]} ]`)
   })
   return output
 }
@@ -139,11 +139,12 @@ function stringableDependency(dep) {
 
 
 const testEvent = function(name, conditions, processParams) {
-  trace(`Testing conditions for ${name}: ${conditions ? JSON.stringify(conditions) : conditions}`)
-  return !conditions || _(processParams(conditions)).values().every()
+  const result = !conditions || _(processParams(conditions)).values().every()
+  trace(`Testing conditions for ${name}: [ conditions: ${conditions ? JSON.stringify(conditions) : conditions} ] [ result: ${result} ]`)
+  return result
 }
 
-function logStage(stage, vars, dependencies, stage) {
+function logStage(stage, vars, dependencies) {
   trace(`${stage}: [ vars: ${_.isObjectLike(vars) ? JSON.stringify(vars) : vars} ] [ deps: ${JSON.stringify(_.reduce(dependencies, (acc, v, k) => {
     acc[k] = stringableDependency(v)
     return acc
