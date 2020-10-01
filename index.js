@@ -54,7 +54,7 @@ function processParamValue(helperFunctions, input, value) {
   } else if (value.every) {
     return _(processParams(helperFunctions, input, value.every)).values().every()
   } else if (value.not) {
-    return !processParams(helperFunctions, input, value.not)
+    return !processParamValue(helperFunctions, input, value.not)
   } else if (value.some) {
     return _(processParams(helperFunctions, input, value.some)).values().some()
   } else if (value.or) {
@@ -139,8 +139,10 @@ function stringableDependency(dep) {
 
 
 const testEvent = function(name, conditions, processParams) {
-  const result = !conditions || _(processParams(conditions)).values().every()
-  trace(`Testing conditions for ${name}: [ conditions: ${conditions ? JSON.stringify(conditions) : conditions} ] [ result: ${result} ]`)
+  const notApplicable = !conditions
+  const processed = processParams(conditions)
+  const result = _.every(_.values(processed))
+  trace(`Testing conditions for ${name}: [ conditions: ${conditions ? JSON.stringify(conditions) : conditions} ] [ processed: ${_.isObjectLike(processed) ? JSON.stringify(processed) : processed} ] [ result: ${result} ]`)
   return result
 }
 

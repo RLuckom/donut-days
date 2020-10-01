@@ -31,7 +31,7 @@ const test2 = {
         rest: (n) => _.isEqual(n, [2, 3, 4, 5]),
         all: (n) => _.isEqual(n, [1, 2, 3, 4, 5]),
         middle: (n) => _.isEqual(n, [2, 3, 4]),
-        not: (n) => n === false,
+        not: (n) => n === true,
       },
       dependencies: {
       }
@@ -49,7 +49,7 @@ const test2 = {
   config: {
     intro: {
       transformers: {
-        not: {not: {value: 6} },
+        not: {not: {ref: 6} },
         eight: {or: [{ref: 'event.foo.bar'}, {value: 8}]},
         rest: {
           helper: "slice",
@@ -77,6 +77,9 @@ const test2 = {
     main: {
       dependencies: {
         one: {
+         conditions: {
+        not: {not: {ref: 6} }
+         },
           action: 'one'
         }
       }
