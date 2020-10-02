@@ -7,18 +7,41 @@ const test1 = {
   validators: {
     intro: {
       dependencies: {
+      },
+      dependencyInput: {}
+    },
+    main: {
+      dependencies: {
+      },
+      dependencyInput: {}
+    },
+    outro: {
+      dependencies: {
+      },
+      dependencyInput: {
+      }
+    }
+  },
+  config: {
+    intro: {
+      transformers: {
+      },
+      dependencies: {
       }
     },
     main: {
+      transformers: {
+      },
       dependencies: {
       }
     },
     outro: {
+      transformers: {
+      },
       dependencies: {
       }
-    }
+    },
   },
-  config: {},
   event: {},
 }
 
@@ -456,4 +479,126 @@ const test7 = {
   onComplete: (finishedSteps) => expect(finishedSteps.length).toEqual(3),
 }
 
-generateTests('Basic', [test1, test2, test3, test4, test5, test6, test7])
+const test8 = {
+  name: 'test8',
+  validators: {
+    intro: {
+      dependencies: {
+      },
+      dependencyInput: {}
+    },
+    main: {
+      dependencies: {
+      },
+      dependencyInput: {}
+    },
+    outro: {
+      dependencies: {
+        recursion_invoke: (dep) => {
+          console.log(JSON.stringify(dep))
+          return (
+            dep.accessSchema === true && dep.params.FunctionName.value === "self" &&
+            dep.params.InvocationType.value === "Event" && _.isEqual(dep.params.Payload, {value:"{\"a\":4,\"b\":1,\"recursionDepth\":2}"}))
+
+      },
+    },
+    dependencyInput: {}
+    }
+  },
+  config: {
+    intro: {
+      transformers: {
+      },
+      dependencies: {
+      }
+    },
+    main: {
+      transformers: {
+      },
+      dependencies: {
+      }
+    },
+    outro: {
+      transformers: {
+      },
+      dependencies: {
+        recursion: {
+          action: 'recurse',
+          params: {
+            Payload: { all: {
+                a: { ref: 'event.a'},
+                b: { value: 1},
+              }
+            }
+          }
+        },
+      },
+    },
+  },
+  event: {
+    a: 4
+  },
+  context: {
+    invokedFunctionArn: "self"
+  },
+}
+
+const test9 = {
+  name: 'test9',
+  validators: {
+    intro: {
+      dependencies: {
+      },
+      dependencyInput: {}
+    },
+    main: {
+      dependencies: {
+      },
+      dependencyInput: {}
+    },
+    outro: {
+      dependencies: {
+      },
+      dependencyInput: {}
+    }
+  },
+  config: {
+    intro: {
+      transformers: {
+      },
+      dependencies: {
+      }
+    },
+    main: {
+      transformers: {
+      },
+      dependencies: {
+      }
+    },
+    outro: {
+      transformers: {
+      },
+      dependencies: {
+        recursion: {
+          action: 'recurse',
+          params: {
+            Payload: { all: {
+                a: { ref: 'event.a'},
+                b: { value: 1},
+              }
+            }
+          }
+        },
+      },
+    },
+  },
+  event: {
+    a: 4,
+    recursionDepth: 3,
+  },
+  context: {
+    invokedFunctionArn: "self"
+  },
+}
+
+generateTests('Basic', [test1, test2, test3, test4, test5, test6, test7, test8, test9])

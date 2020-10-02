@@ -8,6 +8,10 @@ const apiConfig = {
   region: process.env.AWS_REGION
 }
 
+const defaults = {
+  MAX_RECURSION_DEPTH: 3
+}
+
 function log(level, message) {
   if (process.env.DONUT_DAYS_DEBUG || level === 'ERROR' || level === "WARN") {
     console.log(`${level}\t${message}`)
@@ -64,7 +68,20 @@ function processParamValue(helperFunctions, input, value) {
   } else if (value.all) {
     return processParams(helperFunctions, input, value.all)
   } else if (value.helper) {
-    return transformers[value.helper](processParams(helperFunctions, input, value.params))
+    const helper = transformers[value.helper]
+    if (!_.isFunction(helper)) {
+      error(`No helper function named ${value.helper}. Instead found ${safeStringify(helper)}. Available helpers: ${JSON.stringify(_.keys(transformers))}`)
+    } else {
+      return transformers[value.helper](processParams(helperFunctions, input, value.params))
+    }
+  }
+}
+
+function safeStringify(o) {
+  if (_.isObjectLike(o)) {
+    return JSON.stringify(o)
+  } else {
+    return o
   }
 }
 
@@ -83,7 +100,27 @@ function dependencyBuilders(helpers) {
               value: params.Payload
             }
           }
-        })
+        }, params.dryRun)
+      },
+      recurse: (params, addDependency, getDependencyName, processParams, processParamValue) => {
+        const recursionDepth = (processParamValue({ref: 'event.recursionDepth'}) || 1) + 1
+        const allowedRecursionDepth = processParamValue({ref: 'config.overrides.MAX_RECURSION_DEPTH'}) || defaults.MAX_RECURSION_DEPTH
+        if (allowedRecursionDepth > recursionDepth) {
+          addDependency('invoke',  {
+            accessSchema: exploranda.dataSources.AWS.lambda.invoke,
+            params: {
+              FunctionName: {
+                value: processParamValue({ref: 'context.invokedFunctionArn'})
+              },
+              InvocationType: {value: 'Event'},
+              Payload: {
+                value: JSON.stringify({...params.Payload, ...{
+                  recursionDepth: (processParamValue({ref: 'event.recursionDepth'}) || 1) + 1
+                }})
+            }}}, params.dryRun)
+        } else {
+          error(`Max recursion depth exceeded. [ depth: ${recursionDepth} ] [ allowedRecursionDepth: ${allowedRecursionDepth} ] [ params: ${safeStringify(params)} ]`)
+        }
       },
       exploranda: (params, addDependency, getDependencyName, processParams) => {
         addDependency(params.dependencyName, {
@@ -126,7 +163,8 @@ function generateDependencies(input, config, transformers, mergedDependencyBuild
         processParams(transformers, input, desc.params),
         _.partial(addDependency, name),
         _.partial(getQualifiedDepName, name),
-        _.partial(processParams, transformers, input)
+        _.partial(processParams, transformers, input),
+        _.partial(processParamValue, transformers, input)
       )
     }
   })
@@ -161,18 +199,18 @@ function createTask(config, helperFunctions, dependencyHelpers) {
   const makeIntroDependencies = function(event, context) {
     const stageConfig = _.get(config, ['intro', 'transformers'])
     trace('intro')
-    const input = transformInput("intro", stageConfig, _.partial(processParams, helperFunctions, {event, context}))
-    return {vars: input, dependencies: generateDependencies({stage: input, event, context}, _.get(config, 'intro.dependencies'), helperFunctions, mergedDependencyBuilders)}
+    const input = transformInput("intro", stageConfig, _.partial(processParams, helperFunctions, {event, context, config}))
+    return {vars: input, dependencies: generateDependencies({stage: input, event, context, config}, _.get(config, 'intro.dependencies'), helperFunctions, mergedDependencyBuilders)}
   }
   const makeMainDependencies = function(event, context, intro) {
     const stageConfig = _.get(config, ['main', 'transformers'])
-    const input = transformInput("main", stageConfig, _.partial(processParams, helperFunctions, {event, context, intro}))
-    return {vars: input, dependencies: generateDependencies({stage: input, event, context, intro}, _.get(config, 'main.dependencies'), helperFunctions, mergedDependencyBuilders)}
+    const input = transformInput("main", stageConfig, _.partial(processParams, helperFunctions, {event, context, intro, config}))
+    return {vars: input, dependencies: generateDependencies({stage: input, event, context, intro, config}, _.get(config, 'main.dependencies'), helperFunctions, mergedDependencyBuilders)}
   }
   const makeOutroDependencies = function(event, context, intro, main) {
     const stageConfig = _.get(config, ['outro', 'transformers'])
-    const input = transformInput("outro", stageConfig, _.partial(processParams, helperFunctions, {event, context, intro, main}))
-    return {vars: input, dependencies: generateDependencies({stage: input, event, context, intro, main}, _.get(config, 'outro.dependencies'), helperFunctions, mergedDependencyBuilders)}
+    const input = transformInput("outro", stageConfig, _.partial(processParams, helperFunctions, {event, context, intro, main, config}))
+    return {vars: input, dependencies: generateDependencies({stage: input, event, context, intro, main, config}, _.get(config, 'outro.dependencies'), helperFunctions, mergedDependencyBuilders)}
   }
   return function(event, context, callback) {
     function performIntro(callback) {

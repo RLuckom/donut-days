@@ -30,6 +30,7 @@ function makeExplorandaMock(validators) {
 
 function validateDependencies(dependencies, depGraphSpec) {
   _.map(depGraphSpec, (v, k) => {
+    console.log(`testing ${k}, function ${dependencies[k]}`)
     const result = v(dependencies[k])
     if (process.env.DONUT_DAYS_DEBUG) {
       console.log(`Testing ${k}: ${JSON.stringify(dependencies[k])}. result: ${result}`)
