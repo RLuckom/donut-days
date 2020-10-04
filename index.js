@@ -213,6 +213,7 @@ function createTask(config, helperFunctions, dependencyHelpers) {
     return {vars: input, dependencies: generateDependencies({stage: input, event, context, intro, main, config}, _.get(config, 'outro.dependencies'), helperFunctions, mergedDependencyBuilders)}
   }
   return function(event, context, callback) {
+    info(`event: ${safeStringify(event)}`)
     function performIntro(callback) {
       const {vars, dependencies} = makeIntroDependencies(event, context)
       logStage('intro', vars, dependencies)
