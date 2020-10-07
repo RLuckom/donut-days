@@ -19,7 +19,9 @@ function makeExplorandaMock(validators) {
       }
       finishedSteps.push(calls)
       calls++
-      console.log(`deps: ${JSON.stringify(dependencies)} keys: ${JSON.stringify(_.keys(validator.dependencies))}`)
+        if (process.env.DONUT_DAYS_DEBUG) {
+        console.log(`deps: ${JSON.stringify(dependencies)} keys: ${JSON.stringify(_.keys(validator.dependencies))}`)
+      }
       validateDependencies(dependencies, validator.dependencies)
       return reporter(validator)
     },
@@ -30,17 +32,36 @@ function makeExplorandaMock(validators) {
 
 function validateDependencies(dependencies, depGraphSpec) {
   _.map(depGraphSpec, (v, k) => {
-    console.log(`testing ${k}, function ${dependencies[k]}`)
+    if (process.env.DONUT_DAYS_DEBUG) {
+      console.log(`testing ${k}: ${dependencies[k]}`)
+    }
     const result = v(dependencies[k])
     if (process.env.DONUT_DAYS_DEBUG) {
       console.log(`Testing ${k}: ${JSON.stringify(dependencies[k])}. result: ${result}`)
     }
     expect(result).toBeTruthy()
   })
-    if (process.env.DONUT_DAYS_DEBUG) {
-      console.log(`Expecting ${JSON.stringify(dependencies)} to have the keys: ${JSON.stringify(_.keys(depGraphSpec))}`)
-    }
+  if (process.env.DONUT_DAYS_DEBUG) {
+    console.log(`Expecting ${JSON.stringify(dependencies)} to have the keys: ${JSON.stringify(_.keys(depGraphSpec))}`)
+  }
   expect(_.keys(depGraphSpec).length).toEqual(_.keys(dependencies).length)
+}
+
+function validateResources(resourceReferences, resourceSpec) {
+  _.map(resourceSpec, (v, k) => {
+    if (process.env.DONUT_DAYS_DEBUG) {
+      console.log(`testing resource ${k}: ${resourceReferences[k]}`)
+    }
+    const result = v(resourceReferences[k])
+    if (process.env.DONUT_DAYS_DEBUG) {
+      console.log(`Testing resource ${k}: ${JSON.stringify(resourceReferences[k])}. result: ${result}`)
+    }
+    expect(result).toBeTruthy()
+  })
+  if (process.env.DONUT_DAYS_DEBUG) {
+    console.log(`Expecting ${JSON.stringify(resourceReferences)} to have the keys: ${JSON.stringify(_.keys(resourceSpec))}`)
+  }
+  expect(_.keys(resourceSpec).length).toEqual(_.keys(resourceReferences).length)
 }
 
 function newTransformInput(original, validators) {

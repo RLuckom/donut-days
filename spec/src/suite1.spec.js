@@ -601,4 +601,87 @@ const test9 = {
   },
 }
 
-generateTests('Basic', [test1, test2, test3, test4, test5, test6, test7, test8, test9])
+const test10 = {
+  name: 'test10',
+  validators: {
+    intro: {
+      dependencies: {
+        eventConfigured_invoke: (dep) => { 
+          console.log(JSON.stringify(dep))
+          return (
+            dep.accessSchema === true && dep.params.FunctionName.value === "testEventConfigured" &&
+            dep.params.InvocationType.value === "Event" && JSON.parse(dep.params.Payload.value).runId )
+
+      },
+      },
+      dependencyInput: {
+        uniqueId: _.identity
+      }
+    },
+    main: {
+      dependencies: {
+      },
+      dependencyInput: {
+        s3Object: (m) => uuid.validate(m.fileName)
+      }
+    },
+    outro: {
+      dependencies: {
+      },
+      dependencyInput: {
+      }
+    }
+  },
+  config: {
+    intro: {
+      transformers: {
+        uniqueId: {helper: 'uuid'}
+      },
+      dependencies: {
+        eventConfigured: {
+          action: 'eventConfiguredInvocation',
+          params: {
+            FunctionName: {value: 'testEventConfigured'},
+            config: {
+              value: {
+                intro: {},
+                main: {},
+                outro: {},
+              }
+            },
+            resourceReferences: {
+              value: {
+                s3Object: {
+                  all: {
+                  fileName: {ref: 'prospectiveEvent.runId' }
+                }
+                }
+              }
+            },
+            payloadValues: {
+              all: {
+                runId: { ref: 'stage.uniqueId' }
+              }
+            }
+          }
+        }
+      }
+    },
+    main: {
+      transformers: {
+        s3Object: {ref: 'intro.resourceReferences.eventConfigured_resources.s3Object'},
+      },
+      dependencies: {
+      }
+    },
+    outro: {
+      transformers: {
+      },
+      dependencies: {
+      }
+    },
+  },
+  event: {},
+}
+
+generateTests('Basic', [test1, test2, test3, test4, test5, test6, test7, test8, test9, test10])
