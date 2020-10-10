@@ -57,6 +57,10 @@ const test2 = {
         not: (n) => n === true,
         toJson: (n) => _.isEqual(JSON.parse(n), {a: 6}),
         fromJson: (n) => _.isEqual(n, {a: 6}),
+        qualifiedDependencyName: (n) => _.isEqual(n, 'a_b'),
+        template: (n) => _.isEqual(n, 'a'),
+        isInList: (n) => _.isEqual(n, true),
+        isNotInList: (n) => _.isEqual(n, false),
       },
       dependencies: {
       }
@@ -85,6 +89,34 @@ const test2 = {
           },
         },
         not: {not: {ref: 6} },
+        isNotInList: {
+          helper: 'isInList',
+          params: {
+            list: { value: ['a'] },
+            item: { value: 'b'}
+          }
+        },
+        template: {
+          helper: 'template',
+          params: {
+            templateString: {value: '<%= a %>'},
+            templateArguments: {value: {a: 'a'}}
+          }
+        },
+        isInList: {
+          helper: 'isInList',
+          params: {
+            list: {value: ['a']},
+            item: {value: 'a'}
+          }
+        },
+        qualifiedDependencyName: {
+          helper: 'qualifiedDependencyName',
+          params: {
+            configStepName: {value: 'a'},
+            dependencyName: {value: 'b'}
+          }
+        },
         eight: {or: [{ref: 'event.foo.bar'}, {value: 8}]},
         rest: {
           helper: "slice",
@@ -495,7 +527,6 @@ const test8 = {
     outro: {
       dependencies: {
         recursion_invoke: (dep) => {
-          console.log(JSON.stringify(dep))
           return (
             dep.accessSchema === true && dep.params.FunctionName.value === "self" &&
             dep.params.InvocationType.value === "Event" && _.isEqual(dep.params.Payload, {value:"{\"a\":4,\"b\":1,\"recursionDepth\":2}"}))
@@ -607,12 +638,13 @@ const test10 = {
     intro: {
       dependencies: {
         eventConfigured_invoke: (dep) => { 
-          console.log(JSON.stringify(dep))
+          const payload = JSON.parse(dep.params.Payload.value)
+
           return (
             dep.accessSchema === true && dep.params.FunctionName.value === "testEventConfigured" &&
-            dep.params.InvocationType.value === "Event" && JSON.parse(dep.params.Payload.value).runId )
-
-      },
+              dep.params.InvocationType.value === "Event" && uuid.validate(payload.runId) && uuid.validate(payload.config.expectations.s3Object.expectedResource.fileName)
+          )
+        },
       },
       dependencyInput: {
         uniqueId: _.identity
@@ -684,4 +716,139 @@ const test10 = {
   event: {},
 }
 
-generateTests('Basic', [test1, test2, test3, test4, test5, test6, test7, test8, test9, test10])
+const test11 = {
+  name: 'test11',
+  expectError: true,
+  validators: {
+    intro: {
+      dependencies: {
+      },
+      dependencyInput: {}
+    },
+    main: {
+      dependencies: {
+      },
+      dependencyInput: {}
+    },
+    outro: {
+      dependencies: {
+        fulfill_fulfillObject: (dep) => _.isEqual(dep, {})
+      },
+      dependencyInput: {}
+    }
+  },
+  config: {
+    expectations: {
+      fulfilled: {
+        expectedResource: {
+          bucket: 'foo',
+          key: 'bar'
+        }
+      }
+    },
+    intro: {
+      transformers: {
+      },
+      dependencies: {
+      }
+    },
+    main: {
+      transformers: {
+      },
+      dependencies: {
+      }
+    },
+    outro: {
+      transformers: {
+      },
+      dependencies: {
+        fulfill: {
+          action: 'fulfillObject',
+          params: {
+          }
+        },
+      },
+    },
+  },
+  event: {
+    a: 4
+  },
+  context: {
+    invokedFunctionArn: "self"
+  },
+  dependencyHelpers: {
+    fulfillObject: (params, addDependency, addResourceReference, getDependencyName, processParamsPreset, processParamValue, addFullfilledResource, transformers) => {
+      addFullfilledResource({bucket: 'fro', key: 'bar'})
+      addDependency('fulfillObject', params)
+    }
+  }
+}
+
+const test12 = {
+  name: 'test12',
+  validators: {
+    intro: {
+      dependencies: {
+      },
+      dependencyInput: {}
+    },
+    main: {
+      dependencies: {
+      },
+      dependencyInput: {}
+    },
+    outro: {
+      dependencies: {
+        fulfill_fulfillObject: (dep) => _.isEqual(dep, {})
+      },
+      dependencyInput: {}
+    }
+  },
+  config: {
+    expectations: {
+      fulfilled: {
+        expectedResource: {
+          bucket: 'foo',
+          key: 'bar'
+        }
+      }
+    },
+    intro: {
+      transformers: {
+      },
+      dependencies: {
+      }
+    },
+    main: {
+      transformers: {
+      },
+      dependencies: {
+      }
+    },
+    outro: {
+      transformers: {
+      },
+      dependencies: {
+        fulfill: {
+          action: 'fulfillObject',
+          params: {
+          }
+        },
+      },
+    },
+  },
+  event: {
+    a: 4
+  },
+  context: {
+    invokedFunctionArn: "self"
+  },
+  dependencyHelpers: {
+    fulfillObject: (params, addDependency, addResourceReference, getDependencyName, processParamsPreset, processParamValue, addFullfilledResource, transformers) => {
+      addFullfilledResource({bucket: 'foo', key: 'bar'})
+      addDependency('fulfillObject', params)
+    }
+  }
+}
+
+generateTests('Basic', [test1, test2, test3, test4, test5, test6, test7, test8, test9, test10, test11, test12])

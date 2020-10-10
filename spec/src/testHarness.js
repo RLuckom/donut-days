@@ -76,14 +76,19 @@ function newTransformInput(original, validators) {
 
 function generateTests(suiteName, testObjects) {
   describe(suiteName, () => {
-    _.map(testObjects, ({name, onComplete, validators, config, event, context, helperFunctions, dependencyHelpers}) => {
+    _.map(testObjects, ({expectError, name, onComplete, validators, config, event, context, helperFunctions, dependencyHelpers}) => {
       it(name, (done) => {
         const originalTransformInput = main.__get__('transformInput')
         const explorandaMock = makeExplorandaMock(validators)
         const unsetExploranda = main.__set__('exploranda', explorandaMock)
         const unsetTransformInput = main.__set__('transformInput', newTransformInput(originalTransformInput, validators))
-        main.createTask(config, helperFunctions || {}, dependencyHelpers || {})(event, context || {}, () => {
+        main.createTask(config, helperFunctions || {}, dependencyHelpers || {})(event, context || {}, (e, r) => {
           (onComplete || _.noop)(explorandaMock.finishedSteps)
+          if (expectError) {
+            expect(e).toBeTruthy()
+          } else {
+            expect(e).toBeFalsy()
+          }
           unsetExploranda()
           unsetTransformInput()
           done()

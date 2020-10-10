@@ -127,7 +127,21 @@ function dependencyBuilders(helpers) {
           error(`Max recursion depth exceeded. [ depth: ${recursionDepth} ] [ allowedRecursionDepth: ${allowedRecursionDepth} ] [ params: ${safeStringify(params)} ]`)
         }
       },
-      eventConfiguredInvocation: (params, addDependency, addResourceReference, getDependencyName, processParamsPreset, processParamValue, transformers) => {
+      eventConfiguredInvocation: (params, addDependency, addResourceReference, getDependencyName, processParamsPreset, processParamValue, addFullfilledResource, transformers) => {
+        const resourceReferences = processParams(transformers, {prospectiveEvent: params.payloadValues}, true, params.resourceReferences)
+        addResourceReference('resources', resourceReferences)
+        const expectations = _.reduce(resourceReferences, (acc, ref, name) => {
+          acc[name] = processParamsPreset({
+            expectedResource: {value: ref },
+            expectedBy: {
+              all: {
+                awsRequestId: {ref: 'context.awsRequestId' },
+                functionName: {ref: 'context.functionName' }
+              }
+            }
+          })
+          return acc
+        }, {})
         addDependency('invoke',  {
           accessSchema: exploranda.dataSources.AWS.lambda.invoke,
           params: {
@@ -138,12 +152,11 @@ function dependencyBuilders(helpers) {
             Payload: {
               value: JSON.stringify({
                 ...params.payloadValues,
-                config: params.config,
+                config: {...params.config, ...{expectations}}
               })
             }
           }
         })
-        addResourceReference('resources', processParams(transformers, {prospectiveEvent: params.payloadValues}, true, params.resourceReferences))
       },
       exploranda: (params, addDependency, addResourceReference, getDependencyName, processParams) => {
         addDependency(params.dependencyName, {
@@ -172,6 +185,10 @@ function getQualifiedName(prefix, depName) {
 function generateDependencies(input, config, transformers, mergedDependencyBuilders) {
   const dependencies = {}
   const resourceReferences = {}
+  const fulfilledResources = []
+  function addFullfilledResource(ref) {
+    fulfilledResources.push(ref)
+  }
   function addResourceReference(prefix, processParams, refName,  ref) {
     const name = getQualifiedName(prefix, refName)
     resourceReferences[name] = ref
@@ -195,11 +212,12 @@ function generateDependencies(input, config, transformers, mergedDependencyBuild
         _.partial(getQualifiedName, name),
         _.partial(processParams, transformers, input, false),
         _.partial(processParamValue, transformers, input, false),
+        addFullfilledResource,
         transformers
       )
     }
   })
-  return {dependencies, resourceReferences}
+  return {dependencies, resourceReferences, fulfilledResources}
 }
 
 function stringableDependency(dep) {
@@ -216,11 +234,11 @@ const testEvent = function(name, conditions, processParams) {
   return result
 }
 
-function logStage(stage, vars, dependencies, resourceReferences) {
+function logStage(stage, vars, dependencies, resourceReferences, fulfilledResources) {
   trace(`${stage}: [ vars: ${_.isObjectLike(vars) ? JSON.stringify(vars) : vars} ] [ deps: ${JSON.stringify(_.reduce(dependencies, (acc, v, k) => {
     acc[k] = stringableDependency(v)
     return acc
-  }, {}))} ] [ resourceReferences: ${safeStringify(resourceReferences)} ] `)
+  }, {}))} ] [ resourceReferences: ${safeStringify(resourceReferences)} ] [ fulfilledResources: ${safeStringify(fulfilledResources)} ]`)
 }
 
 // If this signature changes, remember to update the test harness or tests will break.
@@ -244,29 +262,60 @@ function createTask(config, helperFunctions, dependencyHelpers) {
   }
   return function(event, context, callback) {
     info(`event: ${safeStringify(event)}`)
+    const expectations = _.cloneDeep(_.get(config, 'expectations') || {})
+    const errorOnUnfulfilledExpectation = _.isBoolean(_.get(config, 'errorOnUnfulfilledExpectation')) ? _.get(config, 'errorOnUnfulfilledExpectation') : true
+    function markExpectationsFulfilled(fulfilledResources) {
+      _.each(fulfilledResources, (r) => {
+        _.each(expectations, (ex) => {
+          if (_.isEqual(ex.expectedResource, r)) {
+            ex.fulfilled = true
+          }
+        })
+      })
+    }
     function performIntro(callback) {
-      const {vars, dependencies, resourceReferences} = makeIntroDependencies(event, context)
-      logStage('intro', vars, dependencies, resourceReferences)
+      const {vars, dependencies, resourceReferences, fulfilledResources} = makeIntroDependencies(event, context)
+      markExpectationsFulfilled(fulfilledResources)
+      logStage('intro', vars, dependencies, resourceReferences, fulfilledResources)
       const reporter = exploranda.Gopher(dependencies);
       reporter.report((e, n) => callback(e, {vars, resourceReferences, results: n}));
     }
     function performMain(intro, callback) {
-      const {vars, dependencies, resourceReferences} = makeMainDependencies(event, context, intro)
-      logStage('main', vars, dependencies, resourceReferences)
+      const {vars, dependencies, resourceReferences, fulfilledResources} = makeMainDependencies(event, context, intro)
+      markExpectationsFulfilled(fulfilledResources)
+      logStage('main', vars, dependencies, resourceReferences, fulfilledResources)
       const reporter = exploranda.Gopher(dependencies);
       reporter.report((e, n) => callback(e, intro, {vars, resourceReferences, results: n}));
     }
     function performOutro(intro, main, callback) {
-      const {vars, dependencies, resourceReferences} = makeOutroDependencies(event, context, intro, main)
-      logStage('outro', vars, dependencies, resourceReferences)
+      const {vars, dependencies, resourceReferences, fulfilledResources} = makeOutroDependencies(event, context, intro, main)
+      markExpectationsFulfilled(fulfilledResources)
+      logStage('outro', vars, dependencies, resourceReferences, fulfilledResources)
       const reporter = exploranda.Gopher(dependencies);
       reporter.report((e, n) => callback(e, intro, main, {vars, resourceReferences, results: n}));
+    }
+    function checkExpectationsFulfilled() {
+      trace(`[ all expectations: ${safeStringify(expectations)} ]`)
+      unfulfilledExpectations = _.reduce(expectations, (acc, v, k) => {
+        if (!v.fulfilled) {
+          acc[k] = v
+        }
+        return acc;
+      }, {})
+      if (_.values(unfulfilledExpectations).length) {
+        const msg = `[ Unfulfilled expectations: ${safeStringify(unfulfilledExpectations)} ] [ error: ${errorOnUnfulfilledExpectation} ]`
+        error(msg)
+        if (errorOnUnfulfilledExpectation) {
+          throw new Error(msg)
+        }
+      }
     }
     function performCleanup(intro, main, outro, callback) {
       setTimeout(() => {
         try {
-    const stageConfig = _.get(config, ['cleanup', 'transformers'])
-        callback(null, transformInput('cleanup', stageConfig,  _.partial(processParams, helperFunctions, {event, context, intro, main, outro}, false)))
+          checkExpectationsFulfilled()
+          const stageConfig = _.get(config, ['cleanup', 'transformers'])
+          callback(null, transformInput('cleanup', stageConfig,  _.partial(processParams, helperFunctions, {event, context, intro, main, outro}, false)))
         } catch(e) {
           callback(e)
         }
@@ -282,7 +331,12 @@ function createTask(config, helperFunctions, dependencyHelpers) {
       ], callback)
     } else {
       debug(`event ${event ? JSON.stringify(event) : event} did not match for processing`)
-      callback()
+      try {
+        checkExpectationsFulfilled()
+        callback()
+      } catch(e) {
+        callback(e)
+      }
     }
   }
 }
