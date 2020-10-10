@@ -40,6 +40,8 @@ const builtInTransformations = {
   toJson: (p) => JSON.stringify(p),
   fromJson: ({string}) => JSON.parse(string),
   qualifiedDependencyName: ({configStepName, dependencyName}) => getQualifiedName(configStepName, dependencyName),
+  template: ({templateString, templateArguments}) => _.template(templateString)(templateArguments),
+  isInList: ({item, list}) => list.indexOf(item) !== -1
 }
 
 function processParams(helperFunctions, input, requireValue, params) {
@@ -103,7 +105,7 @@ function dependencyBuilders(helpers) {
               value: params.Payload
             }
           }
-        }, params.dryRun)
+        })
       },
       recurse: (params, addDependency, addResourceReference, getDependencyName, processParams, processParamValue) => {
         const recursionDepth = (processParamValue({ref: 'event.recursionDepth'}) || 1) + 1
@@ -120,7 +122,7 @@ function dependencyBuilders(helpers) {
                 value: JSON.stringify({...params.Payload, ...{
                   recursionDepth: (processParamValue({ref: 'event.recursionDepth'}) || 1) + 1
                 }})
-            }}}, params.dryRun)
+            }}})
         } else {
           error(`Max recursion depth exceeded. [ depth: ${recursionDepth} ] [ allowedRecursionDepth: ${allowedRecursionDepth} ] [ params: ${safeStringify(params)} ]`)
         }
@@ -140,14 +142,14 @@ function dependencyBuilders(helpers) {
               })
             }
           }
-        }, params.dryRun)
+        })
         addResourceReference('resources', processParams(transformers, {prospectiveEvent: params.payloadValues}, true, params.resourceReferences))
       },
       exploranda: (params, addDependency, addResourceReference, getDependencyName, processParams) => {
         addDependency(params.dependencyName, {
           accessSchema: _.get(exploranda, params.accessSchema),
           params: processParams(params.params)
-        }, params.dryRun)
+        })
       },
       storeItem: (params, addDependency) => {
         addDependency('stored', {
@@ -174,7 +176,7 @@ function generateDependencies(input, config, transformers, mergedDependencyBuild
     const name = getQualifiedName(prefix, refName)
     resourceReferences[name] = ref
   }
-  function addDependency(prefix, depName, dep, dryRun) {
+  function addDependency(dryRun, prefix, depName, dep) {
     const name = getQualifiedName(prefix, depName)
     if (dryRun) {
       console.log(`Would add dependency ${name} consisting of ${JSON.stringify(stringableDependency(dep))}`)
@@ -188,7 +190,7 @@ function generateDependencies(input, config, transformers, mergedDependencyBuild
       builder = mergedDependencyBuilders[desc.action]
       return builder(
         processParams(transformers, input, false, desc.params),
-        _.partial(addDependency, name),
+        _.partial(addDependency, desc.dryRun, name),
         _.partial(addResourceReference, name, _.partial(processParams, transformers, input)),
         _.partial(getQualifiedName, name),
         _.partial(processParams, transformers, input, false),

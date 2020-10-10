@@ -325,9 +325,9 @@ const test6 = {
             }
           },
           action: 'exploranda',
+          dryRun: { value: true },
           params: {
             dependencyName: { value: 'nextFunction' },
-            dryRun: { value: true },
             accessSchema: { value: 'dataSources.AWS.lambda.invoke'},
             params: {value: {
               FunctionName: {all: {
