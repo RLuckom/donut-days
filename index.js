@@ -41,7 +41,8 @@ const builtInTransformations = {
   fromJson: ({string}) => JSON.parse(string),
   qualifiedDependencyName: ({configStepName, dependencyName}) => getQualifiedName(configStepName, dependencyName),
   template: ({templateString, templateArguments}) => _.template(templateString)(templateArguments),
-  isInList: ({item, list}) => list.indexOf(item) !== -1
+  mapTemplate: ({templateString, templateArgumentsArray}, {processParamValue}) => _.map(templateArgumentsArray, (templateArguments) => _.template(templateString)(processParamValue(templateArguments))),
+  isInList: ({item, list}) => list.indexOf(item) !== -1,
 }
 
 function processParams(helperFunctions, input, requireValue, params) {
@@ -77,7 +78,7 @@ function processParamValue(helperFunctions, input, requireValue, value) {
     if (!_.isFunction(helper)) {
       error(`No helper function named ${value.helper}. Instead found ${safeStringify(helper)}. Available helpers: ${JSON.stringify(_.keys(transformers))}`)
     } else {
-      return transformers[value.helper](processParams(helperFunctions, input, requireValue, value.params))
+      return transformers[value.helper](processParams(helperFunctions, input, requireValue, value.params), {processParamValue: _.partial(processParamValue, helperFunctions, input, requireValue)})
     }
   }
 }

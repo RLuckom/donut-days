@@ -59,6 +59,7 @@ const test2 = {
         fromJson: (n) => _.isEqual(n, {a: 6}),
         qualifiedDependencyName: (n) => _.isEqual(n, 'a_b'),
         template: (n) => _.isEqual(n, 'a'),
+        mapTemplate: (n) => _.isEqual(n, ['a', 'b']),
         isInList: (n) => _.isEqual(n, true),
         isNotInList: (n) => _.isEqual(n, false),
       },
@@ -101,6 +102,13 @@ const test2 = {
           params: {
             templateString: {value: '<%= a %>'},
             templateArguments: {value: {a: 'a'}}
+          }
+        },
+        mapTemplate: {
+          helper: 'mapTemplate',
+          params: {
+            templateString: {value: '<%= a %>'},
+            templateArgumentsArray: {value: [{value: {a: 'a'}}, {value: {a: 'b'}}]}
           }
         },
         isInList: {
