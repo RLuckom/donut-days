@@ -693,7 +693,7 @@ const test10 = {
               value: {
                 s3Object: {
                   all: {
-                  fileName: {ref: 'prospectiveEvent.runId' }
+                  fileName: {ref: 'stage.uniqueId' }
                 }
                 }
               }

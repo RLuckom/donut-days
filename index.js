@@ -128,11 +128,11 @@ function dependencyBuilders(helpers) {
           error(`Max recursion depth exceeded. [ depth: ${recursionDepth} ] [ allowedRecursionDepth: ${allowedRecursionDepth} ] [ params: ${safeStringify(params)} ]`)
         }
       },
-      eventConfiguredInvocation: (params, addDependency, addResourceReference, getDependencyName, processParamsPreset, processParamValue, addFullfilledResource, transformers) => {
-        const resourceReferences = processParams(transformers, {prospectiveEvent: params.payloadValues}, true, params.resourceReferences)
+      eventConfiguredInvocation: (params, addDependency, addResourceReference, getDependencyName, processParams, processParamValue, addFullfilledResource) => {
+        const resourceReferences = processParams(params.resourceReferences)
         addResourceReference('resources', resourceReferences)
         const expectations = _.reduce(resourceReferences, (acc, ref, name) => {
-          acc[name] = processParamsPreset({
+          acc[name] = processParams({
             expectedResource: {value: ref },
             expectedBy: {
               all: {
