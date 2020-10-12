@@ -128,7 +128,7 @@ function dependencyBuilders(helpers) {
           error(`Max recursion depth exceeded. [ depth: ${recursionDepth} ] [ allowedRecursionDepth: ${allowedRecursionDepth} ] [ params: ${safeStringify(params)} ]`)
         }
       },
-      eventConfiguredInvocation: (params, addDependency, addResourceReference, getDependencyName, processParams, processParamValue, addFullfilledResource) => {
+      eventConfiguredDD: (params, addDependency, addResourceReference, getDependencyName, processParams, processParamValue, addFullfilledResource) => {
         const resourceReferences = processParams(params.resourceReferences)
         addResourceReference('resources', resourceReferences)
         const expectations = _.reduce(resourceReferences, (acc, ref, name) => {
@@ -152,9 +152,41 @@ function dependencyBuilders(helpers) {
             InvocationType: {value: 'Event'},
             Payload: {
               value: JSON.stringify({
-                ...params.payloadValues,
+                event: params.event,
                 config: {...params.config, ...{expectations}}
               })
+            }
+          }
+        })
+      },
+      DD: (params, addDependency, addResourceReference, getDependencyName, processParams, processParamValue, addFullfilledResource) => {
+        const resourceReferences = processParams(params.resourceReferences)
+        addResourceReference('resources', resourceReferences)
+        const expectations = _.reduce(resourceReferences, (acc, ref, name) => {
+          acc[name] = processParams({
+            expectedResource: {value: ref },
+            expectedBy: {
+              all: {
+                awsRequestId: {ref: 'context.awsRequestId' },
+                functionName: {ref: 'context.functionName' }
+              }
+            }
+          })
+          return acc
+        }, {})
+        addDependency('invoke',  {
+          accessSchema: exploranda.dataSources.AWS.lambda.invoke,
+          params: {
+            FunctionName: {
+              value: params.FunctionName
+            },
+            InvocationType: {value: 'Event'},
+            Payload: {
+              value: JSON.stringify({
+                event: params.event,
+                expectations,
+                }
+              )
             }
           }
         })

@@ -650,7 +650,7 @@ const test10 = {
 
           return (
             dep.accessSchema === true && dep.params.FunctionName.value === "testEventConfigured" &&
-              dep.params.InvocationType.value === "Event" && uuid.validate(payload.runId) && uuid.validate(payload.config.expectations.s3Object.expectedResource.fileName)
+              dep.params.InvocationType.value === "Event" && uuid.validate(payload.event.runId) && uuid.validate(payload.config.expectations.s3Object.expectedResource.fileName)
           )
         },
       },
@@ -679,7 +679,7 @@ const test10 = {
       },
       dependencies: {
         eventConfigured: {
-          action: 'eventConfiguredInvocation',
+          action: 'eventConfiguredDD',
           params: {
             FunctionName: {value: 'testEventConfigured'},
             config: {
@@ -698,7 +698,7 @@ const test10 = {
                 }
               }
             },
-            payloadValues: {
+            event: {
               all: {
                 runId: { ref: 'stage.uniqueId' }
               }
@@ -859,4 +859,81 @@ const test12 = {
   }
 }
 
-generateTests('Basic', [test1, test2, test3, test4, test5, test6, test7, test8, test9, test10, test11, test12])
+const test13 = {
+  name: 'test13',
+  validators: {
+    intro: {
+      dependencies: {
+        dd_invoke: (dep) => { 
+          const payload = JSON.parse(dep.params.Payload.value)
+
+          return (
+            dep.accessSchema === true && dep.params.FunctionName.value === "testdd" &&
+              dep.params.InvocationType.value === "Event" && uuid.validate(payload.event.runId) && uuid.validate(payload.expectations.s3Object.expectedResource.fileName)
+          )
+        },
+      },
+      dependencyInput: {
+        uniqueId: _.identity
+      }
+    },
+    main: {
+      dependencies: {
+      },
+      dependencyInput: {
+        s3Object: (m) => uuid.validate(m.fileName)
+      }
+    },
+    outro: {
+      dependencies: {
+      },
+      dependencyInput: {
+      }
+    }
+  },
+  config: {
+    intro: {
+      transformers: {
+        uniqueId: {helper: 'uuid'}
+      },
+      dependencies: {
+        dd: {
+          action: 'DD',
+          params: {
+            FunctionName: {value: 'testdd'},
+            resourceReferences: {
+              value: {
+                s3Object: {
+                  all: {
+                  fileName: {ref: 'stage.uniqueId' }
+                }
+                }
+              }
+            },
+            event: {
+              all: {
+                runId: { ref: 'stage.uniqueId' }
+              }
+            }
+          }
+        }
+      }
+    },
+    main: {
+      transformers: {
+        s3Object: {ref: 'intro.resourceReferences.dd_resources.s3Object'},
+      },
+      dependencies: {
+      }
+    },
+    outro: {
+      transformers: {
+      },
+      dependencies: {
+      }
+    },
+  },
+  event: {},
+}
+
+generateTests('Basic', [test1, test2, test3, test4, test5, test6, test7, test8, test9, test10, test11, test12, test13])
