@@ -299,7 +299,11 @@ const test6 = {
       },
       dependencies: {
         nextFunction_nextFunction: (dep) => {
-          return (dep.accessSchema && dep.params.FunctionName.value === 4
+          return (dep.accessSchema === true && dep.params.FunctionName.value === 4
+                  && dep.params.Payload.value === 5)
+        },
+        accessSchemaFunction_nextFunction: (dep) => {
+          return (dep.accessSchema.foo === 'bar' && dep.accessSchema.baz() === 'qux' && dep.params.FunctionName.value === 4
                   && dep.params.Payload.value === 5)
         }
       }
@@ -323,6 +327,28 @@ const test6 = {
         one: {ref: 'event.foo.bar'},
       },
       dependencies: {
+        accessSchemaFunction: {
+          action: 'exploranda',
+          params: {
+            dependencyName: { value: 'nextFunction' },
+            accessSchema: { value: {foo: 'bar', baz: () => 'qux'}},
+            params: {value: {
+              FunctionName: {all: {
+                value: { ref: 'stage.one'}
+              }},
+              Payload: {all: {
+                value: { helper: 'one' ,
+                  params: {
+                    a: { ref: 'stage.one'},
+                    b: { value: 1},
+                  }
+                }
+              }
+              }
+            }
+            }
+          }
+        },
         nextFunction: {
           conditions: {
             doesMatch: {

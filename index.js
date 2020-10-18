@@ -193,7 +193,7 @@ function dependencyBuilders(helpers) {
       },
       exploranda: (params, addDependency, addResourceReference, getDependencyName, processParams) => {
         addDependency(params.dependencyName, {
-          accessSchema: _.get(exploranda, params.accessSchema),
+          accessSchema: _.isString(params.accessSchema) ? _.get(exploranda, params.accessSchema) : params.accessSchema,
           params: processParams(params.params)
         })
       },
