@@ -276,6 +276,7 @@ function logStage(stage, vars, dependencies, resourceReferences, fulfilledResour
 
 // If this signature changes, remember to update the test harness or tests will break.
 function createTask(config, helperFunctions, dependencyHelpers) {
+  trace(`Building tasks with config: ${safeStringify(config)}`)
   const mergedDependencyBuilders = dependencyBuilders(dependencyHelpers)
   const makeIntroDependencies = function(event, context) {
     const stageConfig = _.get(config, ['intro', 'transformers'])
@@ -285,11 +286,13 @@ function createTask(config, helperFunctions, dependencyHelpers) {
   }
   const makeMainDependencies = function(event, context, intro) {
     const stageConfig = _.get(config, ['main', 'transformers'])
+    trace('main')
     const input = transformInput("main", stageConfig, _.partial(processParams, helperFunctions, {event, context, intro, config}, false))
     return {...{vars: input}, ...generateDependencies({stage: input, event, context, intro, config}, _.get(config, 'main.dependencies'), helperFunctions, mergedDependencyBuilders) }
   }
   const makeOutroDependencies = function(event, context, intro, main) {
     const stageConfig = _.get(config, ['outro', 'transformers'])
+    trace('outro')
     const input = transformInput("outro", stageConfig, _.partial(processParams, helperFunctions, {event, context, intro, main, config}, false))
     return {...{vars: input}, ...generateDependencies({stage: input, event, context, intro, main, config}, _.get(config, 'outro.dependencies'), helperFunctions, mergedDependencyBuilders) }
   }
@@ -345,6 +348,7 @@ function createTask(config, helperFunctions, dependencyHelpers) {
     }
     function performCleanup(intro, main, outro, callback) {
       setTimeout(() => {
+        trace('cleanup')
         try {
           checkExpectationsFulfilled()
           const stageConfig = _.get(config, ['cleanup', 'transformers'])
