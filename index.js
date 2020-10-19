@@ -359,13 +359,17 @@ function createTask(config, helperFunctions, dependencyHelpers) {
       }, 0)
     }
     if (config.conditions, _.partial(processParams, helperFunctions, {event, context}, false)) {
+      function wrapCallback(e, r) {
+        trace(`Final handler callback. [ Error ${safeStringify(e)} ] [ result: ${safeStringify(r)} ]`)
+        callback(e, r)
+      }
       debug(`event ${event ? JSON.stringify(event) : event} matched for processing`)
       async.waterfall([
         performIntro,
         performMain,
         performOutro,
         performCleanup,
-      ], callback)
+      ], wrapCallback)
     } else {
       debug(`event ${event ? JSON.stringify(event) : event} did not match for processing`)
       try {
