@@ -321,9 +321,14 @@ function createTask(config, helperFunctions, dependencyHelpers) {
       markExpectationsFulfilled(fulfilledResources)
       logStage('main', vars, dependencies, resourceReferences, fulfilledResources)
       const reporter = exploranda.Gopher(dependencies);
-      reporter.report((e, n) => callback(e, intro, {vars, resourceReferences, results: n}));
+      trace('finished main')
+      reporter.report((e, n) => {
+        trace(`Main error ${e}`)
+        callback(e, intro, {vars, resourceReferences, results: n})
+      });
     }
     function performOutro(intro, main, callback) {
+      trace('starting outro')
       const {vars, dependencies, resourceReferences, fulfilledResources} = makeOutroDependencies(event, context, intro, main)
       markExpectationsFulfilled(fulfilledResources)
       logStage('outro', vars, dependencies, resourceReferences, fulfilledResources)
@@ -358,18 +363,14 @@ function createTask(config, helperFunctions, dependencyHelpers) {
         }
       }, 0)
     }
-    if (config.conditions, _.partial(processParams, helperFunctions, {event, context}, false)) {
-      function wrapCallback(e, r) {
-        trace(`Final handler callback. [ Error ${safeStringify(e)} ] [ result: ${safeStringify(r)} ]`)
-        callback(e, r)
-      }
+    if (testEvent('task', config.conditions, _.partial(processParams, helperFunctions, {event, context}, false))) {
       debug(`event ${event ? JSON.stringify(event) : event} matched for processing`)
       async.waterfall([
         performIntro,
         performMain,
         performOutro,
         performCleanup,
-      ], wrapCallback)
+      ], callback)
     } else {
       debug(`event ${event ? JSON.stringify(event) : event} did not match for processing`)
       try {
