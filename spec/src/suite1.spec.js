@@ -560,7 +560,7 @@ const test8 = {
     },
     outro: {
       dependencies: {
-        recursion_invoke: (dep) => {
+        recursion: (dep) => {
           return (
             dep.accessSchema === true && dep.params.FunctionName.value === "self" &&
             dep.params.InvocationType.value === "Event" && _.isEqual(dep.params.Payload, {value:"{\"a\":4,\"b\":1,\"recursionDepth\":2}"}))
@@ -671,7 +671,7 @@ const test10 = {
   validators: {
     intro: {
       dependencies: {
-        eventConfigured_invoke: (dep) => { 
+        eventConfigured: (dep) => { 
           const payload = JSON.parse(dep.params.Payload.value)
 
           return (
@@ -890,12 +890,20 @@ const test13 = {
   validators: {
     intro: {
       dependencies: {
-        dd_invoke: (dep) => { 
+        dd: (dep) => { 
           const payload = JSON.parse(dep.params.Payload.value)
 
           return (
             dep.accessSchema === true && dep.params.FunctionName.value === "testdd" &&
               dep.params.InvocationType.value === "Event" && uuid.validate(payload.event.runId) && uuid.validate(payload.expectations.s3Object.expectedResource.fileName)
+          )
+        },
+        dd2: (dep) => { 
+          const payload = JSON.parse(dep.params.Payload.value)
+
+          return (
+            dep.accessSchema === true && dep.params.FunctionName.value === "testdd" &&
+              dep.params.InvocationType.value === "RequestResponse" && uuid.validate(payload.event.runId)
           )
         },
       },
@@ -942,7 +950,19 @@ const test13 = {
               }
             }
           }
-        }
+        },
+        dd2: {
+          action: 'DD',
+          params: {
+            FunctionName: {value: 'testdd'},
+            InvocationType: {value: 'RequestResponse'},
+            event: {
+              all: {
+                runId: { ref: 'stage.uniqueId' }
+              }
+            }
+          }
+        },
       }
     },
     main: {

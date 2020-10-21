@@ -43,6 +43,33 @@ const builtInTransformations = {
   template: ({templateString, templateArguments}) => _.template(templateString)(templateArguments),
   mapTemplate: ({templateString, templateArgumentsArray}, {processParamValue}) => _.map(templateArgumentsArray, (templateArguments) => _.template(templateString)(processParamValue(templateArguments))),
   isInList: ({item, list}) => list.indexOf(item) !== -1,
+  msTimestamp: () => {
+    return new Date().getTime()
+  },
+  verifySlackSignature: ({credentials, messageSig, messageBody, timestampEpochSeconds}) => {
+    const [v, sig] = messageSig.split('=')
+    const hashInput = `${v}:${timestampEpochSeconds}:${messageBody}`
+    const hmac = require('crypto').createHmac('sha256', credentials.signingSecret);
+    hmac.update(hashInput)
+    const digest = hmac.digest('hex')
+    const hashValid = digest === sig
+    const receiveTime = _.toInteger(new Date().getTime() / 1000)
+    const sentTime = _.toInteger(timestampEpochSeconds)
+    const ageSeconds = receiveTime - sentTime
+    const timely = ageSeconds < 300
+    return {
+      result: hashValid && timely,
+      hashValid,
+      timely,
+      details: {
+        digest,
+        sig,
+        receiveTime,
+        sentTime,
+        ageSeconds,
+      }
+    }
+  }
 }
 
 function processParams(helperFunctions, input, requireValue, params) {
@@ -101,7 +128,7 @@ function dependencyBuilders(helpers) {
             FunctionName: {
               value: params.FunctionName
             },
-            InvocationType: {value: 'Event'},
+            InvocationType: {value: params.InvocationType || 'Event'},
             Payload: {
               value: params.Payload
             }
@@ -112,13 +139,13 @@ function dependencyBuilders(helpers) {
         const recursionDepth = (processParamValue({ref: 'event.recursionDepth'}) || 1) + 1
         const allowedRecursionDepth = processParamValue({ref: 'config.overrides.MAX_RECURSION_DEPTH'}) || defaults.MAX_RECURSION_DEPTH
         if (allowedRecursionDepth > recursionDepth) {
-          addDependency('invoke',  {
+          addDependency(null,  {
             accessSchema: exploranda.dataSources.AWS.lambda.invoke,
             params: {
               FunctionName: {
                 value: processParamValue({ref: 'context.invokedFunctionArn'})
               },
-              InvocationType: {value: 'Event'},
+              InvocationType: {value: params.InvocationType || 'Event'},
               Payload: {
                 value: JSON.stringify({...params.Payload, ...{
                   recursionDepth: (processParamValue({ref: 'event.recursionDepth'}) || 1) + 1
@@ -143,13 +170,13 @@ function dependencyBuilders(helpers) {
           })
           return acc
         }, {})
-        addDependency('invoke',  {
+        addDependency(null,  {
           accessSchema: exploranda.dataSources.AWS.lambda.invoke,
           params: {
             FunctionName: {
               value: params.FunctionName
             },
-            InvocationType: {value: 'Event'},
+            InvocationType: {value: params.InvocationType || 'Event'},
             Payload: {
               value: JSON.stringify({
                 event: params.event,
@@ -174,13 +201,13 @@ function dependencyBuilders(helpers) {
           })
           return acc
         }, {})
-        addDependency('invoke',  {
+        addDependency(null,  {
           accessSchema: exploranda.dataSources.AWS.lambda.invoke,
           params: {
             FunctionName: {
               value: params.FunctionName
             },
-            InvocationType: {value: 'Event'},
+            InvocationType: {value: params.InvocationType || 'Event'},
             Payload: {
               value: JSON.stringify({
                 event: params.event,
@@ -211,7 +238,7 @@ function dependencyBuilders(helpers) {
 }
 
 function getQualifiedName(prefix, depName) {
-  return `${prefix}_${depName}`
+  return depName ? `${prefix}_${depName}` : prefix
 }
 
 
