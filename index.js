@@ -275,8 +275,13 @@ function logStage(stage, vars, dependencies, resourceReferences, fulfilledResour
 }
 
 // If this signature changes, remember to update the test harness or tests will break.
-function createTask(config, helperFunctions, dependencyHelpers) {
+function createTask(config, helperFunctions, dependencyHelpers, recordCollectors) {
   trace(`Building tasks with config: ${safeStringify(config)}`)
+  function addRecordCollectors(gopher) {
+    _.each(recordCollectors, (v, k) => {
+      gopher.recordCollectors[k] = v
+    })
+  }
   const mergedDependencyBuilders = dependencyBuilders(dependencyHelpers)
   const makeIntroDependencies = function(event, context) {
     const stageConfig = _.get(config, ['intro', 'transformers'])
@@ -314,6 +319,7 @@ function createTask(config, helperFunctions, dependencyHelpers) {
       markExpectationsFulfilled(fulfilledResources)
       logStage('intro', vars, dependencies, resourceReferences, fulfilledResources)
       const reporter = exploranda.Gopher(dependencies);
+      addRecordCollectors(reporter)
       reporter.report((e, n) => callback(e, {vars, resourceReferences, results: n}));
     }
     function performMain(intro, callback) {
@@ -322,10 +328,8 @@ function createTask(config, helperFunctions, dependencyHelpers) {
       logStage('main', vars, dependencies, resourceReferences, fulfilledResources)
       const reporter = exploranda.Gopher(dependencies);
       trace('finished main')
-      reporter.report((e, n) => {
-        trace(`Main error ${e}`)
-        callback(e, intro, {vars, resourceReferences, results: n})
-      });
+      addRecordCollectors(reporter)
+      reporter.report((e, n) => callback(e, intro, {vars, resourceReferences, results: n}));
     }
     function performOutro(intro, main, callback) {
       trace('starting outro')
@@ -333,6 +337,7 @@ function createTask(config, helperFunctions, dependencyHelpers) {
       markExpectationsFulfilled(fulfilledResources)
       logStage('outro', vars, dependencies, resourceReferences, fulfilledResources)
       const reporter = exploranda.Gopher(dependencies);
+      addRecordCollectors(reporter)
       reporter.report((e, n) => callback(e, intro, main, {vars, resourceReferences, results: n}));
     }
     function checkExpectationsFulfilled() {
