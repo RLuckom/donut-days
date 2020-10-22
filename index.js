@@ -69,7 +69,16 @@ const builtInTransformations = {
         ageSeconds,
       }
     }
-  }
+  },
+  bufferToString: ({buffer, encoding}) => {
+    return buffer.toString(encoding)
+  },
+  map: ({list, handler}) => {
+    return _.map(list, handler)
+  },
+  transform: ({arg, func}) => {
+    return func(arg)
+  },
 }
 
 function processParams(helperFunctions, input, requireValue, params) {
