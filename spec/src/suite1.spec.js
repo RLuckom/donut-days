@@ -22,26 +22,7 @@ const test1 = {
       }
     }
   },
-  config: {
-    intro: {
-      transformers: {
-      },
-      dependencies: {
-      }
-    },
-    main: {
-      transformers: {
-      },
-      dependencies: {
-      }
-    },
-    outro: {
-      transformers: {
-      },
-      dependencies: {
-      }
-    },
-  },
+  config: {},
   event: {},
 }
 

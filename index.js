@@ -82,7 +82,6 @@ const builtInTransformations = {
 }
 
 function processParams(helperFunctions, input, requireValue, params) {
-  transformers = {...builtInTransformations, ...helperFunctions}
   const output = {}
   _.each(params, (v, k) => {
     output[k] = processParamValue(helperFunctions, input, requireValue, v)
@@ -94,9 +93,101 @@ function processParams(helperFunctions, input, requireValue, params) {
   return output
 }
 
+function processExplorandaParamValue(value, processParamValue) {
+  const source = _.get(value, 'source')
+  const formatter = _.get(value, 'formatter')
+
+  function sourceElementToString(sourceElement) {
+    if (_.isString(sourceElement) || _.isInteger(sourceElement)) {
+      return sourceElement
+    } else if (sourceElement.configStepName || sourceElement.dependencyName) {
+      return getQualifiedName(sourceElement.configStepName, sourceElement.dependencyName)
+    } else {
+      return processParamValue(sourceElement)
+    }
+  }
+
+  function withNormalParams(source, f) {
+    const sourceArray = _.isArray(source) ? _.cloneDeep(source) : [_.cloneDeep(source)]
+    const sourceInstructions = _.zipObject(_.map(sourceArray, sourceElementToString), sourceArray)
+    return function normalizer(params) {
+      const normalizedParams = _.reduce(params, (acc, v, k) => {
+        const instructions = sourceInstructions[k]
+        const newKey = _.get(instructions, 'as') || k
+        if (!_.isArray(v)) {
+          acc[newKey] = v
+        } else if (v.length !== 1) {
+          acc[newKey] = v
+        } else if (_.get(instructions, 'isArrayLike')) {
+          acc[newKey] = v
+        } else {
+          acc[newKey] = v[0]
+        }
+        return acc
+      }, {})
+      return f(normalizedParams)
+    }
+  } 
+
+  if (_.isString(value) || _.isNumber(value) || !value) {
+    return { value }
+  } else if (source || formatter) {
+    const sourceConfig = {}
+    if (source) {
+      if (_.isString(source)) {
+        sourceConfig.source = source
+      } else if (_.isArray(source)) {
+        sourceConfig.source = _.map(source, sourceElementToString) 
+      } else if (source.configStepName) {
+        sourceConfig.source = getQualifiedName(source.configStepName, source.dependencyName) 
+      } else {
+        sourceConfig.source = processParamValue(source)
+      }
+    }
+    if (formatter) {
+      const norm = _.partial(withNormalParams, source)
+      if (_.isString(formatter) || _.isNumber(formatter) || _.isArray(formatter)) {
+        sourceConfig.formatter = norm((params) => _.get(params, formatter))
+      } else if (_.isFunction(formatter)) {
+        const sourceArray = _.isArray(source) ? _.cloneDeep(source) : [_.cloneDeep(source)]
+        const sourceInstructions = _.zipObject(_.map(sourceArray, sourceElementToString), sourceArray)
+        function normalizer(params) {
+          const normalizedParams = _.reduce(params, (acc, v, k) => {
+             const instructions = sourceInstructions[k]
+             const newKey = _.get(instructions, 'as') || k
+             if (!_.isArray(v)) {
+               acc[newKey] = v
+             } else if (v.length !== 1) {
+               acc[newKey] = v
+             } else if (_.get(instructions, 'isArrayLike')) {
+               acc[newKey] = v
+             } else {
+               acc[newKey] = v[0]
+             }
+             return acc
+          }, {})
+          return formatter(normalizedParams)
+        }
+        sourceConfig.formatter = norm(formatter)
+      } else {
+        sourceConfig.formatter = processParamValue(formatter)
+      }
+    }
+    return sourceConfig
+  } else {
+    return {value: processParamValue(value)}
+  }
+}
+
 function processParamValue(helperFunctions, input, requireValue, value) {
+  const transformers = {...builtInTransformations, ...helperFunctions}
   if (value.value) {
     return value.value
+  } else if (value.explorandaParams) {
+    return _.reduce(value.explorandaParams, (acc, v, k) => {
+      acc[k] = processExplorandaParamValue(v, _.partial(processParamValue, helperFunctions, input, requireValue))
+      return acc
+    }, {})
   } else if (value.ref) {
     return _.get(input, value.ref)
   } else if (value.every) {
@@ -227,7 +318,19 @@ function dependencyBuilders(helpers) {
           }
         })
       },
+      explorandaUpdated: (params, addDependency, addResourceReference, getDependencyName, processParams) => {
+        addDependency(params.dependencyName, {
+          accessSchema: _.isString(params.accessSchema) ? _.get(exploranda, params.accessSchema) : params.accessSchema,
+          params: params.params
+        })
+      },
       exploranda: (params, addDependency, addResourceReference, getDependencyName, processParams) => {
+        addDependency(params.dependencyName, {
+          accessSchema: _.isString(params.accessSchema) ? _.get(exploranda, params.accessSchema) : params.accessSchema,
+          params: processParams(params.params)
+        })
+      },
+      explorandaDeprecated: (params, addDependency, addResourceReference, getDependencyName, processParams) => {
         addDependency(params.dependencyName, {
           accessSchema: _.isString(params.accessSchema) ? _.get(exploranda, params.accessSchema) : params.accessSchema,
           params: processParams(params.params)
