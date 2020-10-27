@@ -129,7 +129,7 @@ function processExplorandaParamValue(value, processParamValue) {
     }
   } 
 
-  if (_.isString(value) || _.isNumber(value) || !value) {
+  if (_.isString(value) || _.isNumber(value) || _.isBoolean(value) || !value) {
     return { value }
   } else if (source || formatter) {
     const sourceConfig = {}
