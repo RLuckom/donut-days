@@ -149,6 +149,50 @@ const test2 = {
   }
 }
 
+const test31 = {
+  name: 'condition matches',
+  validators: {
+    intro: {
+      dependencyInput: {
+        one: (n) => n === 4,
+      },
+      dependencies: {
+      }
+    },
+    main: {
+    },
+    outro: {
+      dependencies: {
+      }
+    }
+  },
+  config: {
+    conditions: {
+      doesMatch: [{
+        matchesAll: {
+          'event.foo.bar': 4
+        }
+      }],
+      doesNotMatch: [{
+        matchesAll: {
+          'event.foo.bar': 7
+        }
+      }]
+    },
+    intro: {
+      transformers: {
+        one: {ref: 'event.foo.bar'},
+      }
+    }
+  },
+  event: {
+    foo: {
+      bar: 4
+    }
+  },
+  onComplete: (finishedSteps) => expect(finishedSteps.length).toEqual(1),
+}
+
 const test3 = {
   name: 'condition matches',
   validators: {
@@ -182,7 +226,7 @@ const test3 = {
       bar: 4
     }
   },
-  onComplete: (finishedSteps) => expect(finishedSteps.length).toEqual(3),
+  onComplete: (finishedSteps) => expect(finishedSteps.length).toEqual(0),
 }
 
 const test4 = {
@@ -208,14 +252,14 @@ const test4 = {
           b: {value: 4},
         }
       }
-    },
-    event: {
-      foo: {
-        bar: 7
-      }
-    },
-    onComplete: (finishedSteps) => expect(finishedSteps.length).toEqual(0),
-  }
+    }
+  },
+  event: {
+    foo: {
+      bar: 7
+    }
+  },
+  onComplete: (finishedSteps) => expect(finishedSteps.length).toEqual(0),
 }
 
 const test5 = {
@@ -256,7 +300,7 @@ const test5 = {
       bar: 4
     }
   },
-  onComplete: (finishedSteps) => expect(finishedSteps.length).toEqual(3),
+  onComplete: (finishedSteps) => expect(finishedSteps.length).toEqual(1),
 }
 
 const test6 = {
@@ -401,7 +445,7 @@ const test6 = {
       bar: 4
     }
   },
-  onComplete: (finishedSteps) => expect(finishedSteps.length).toEqual(3),
+  onComplete: (finishedSteps) => expect(finishedSteps.length).toEqual(2),
 }
 
 const test7 = {
@@ -523,7 +567,7 @@ const test7 = {
       bar: 4
     }
   },
-  onComplete: (finishedSteps) => expect(finishedSteps.length).toEqual(3),
+  onComplete: (finishedSteps) => expect(finishedSteps.length).toEqual(2),
 }
 
 const test8 = {
@@ -894,6 +938,22 @@ const test13 = {
     },
     main: {
       dependencies: {
+        dd: (dep) => { 
+          const payload = JSON.parse(dep.params.Payload.value)
+
+          return (
+            dep.accessSchema === true && dep.params.FunctionName.value === "testdd" &&
+              dep.params.InvocationType.value === "Event" && uuid.validate(payload.event.runId) && uuid.validate(payload.expectations.s3Object.expectedResource.fileName)
+          )
+        },
+        dd2: (dep) => { 
+          const payload = JSON.parse(dep.params.Payload.value)
+
+          return (
+            dep.accessSchema === true && dep.params.FunctionName.value === "testdd" &&
+              dep.params.InvocationType.value === "RequestResponse" && uuid.validate(payload.event.runId)
+          )
+        },
       },
       dependencyInput: {
         s3Object: (m) => uuid.validate(m.fileName)
@@ -907,7 +967,48 @@ const test13 = {
     }
   },
   config: {
+    main: {
+      index: 1,
+      transformers: {
+        s3Object: {ref: 'intro.resourceReferences.dd_resources.s3Object'},
+      },
+      dependencies: {
+        dd: {
+          action: 'DD',
+          params: {
+            FunctionName: {value: 'testdd'},
+            resourceReferences: {
+              value: {
+                s3Object: {
+                  all: {
+                  fileName: {ref: 'intro.vars.uniqueId' }
+                }
+                }
+              }
+            },
+            event: {
+              all: {
+                runId: { ref: 'intro.vars.uniqueId' }
+              }
+            }
+          }
+        },
+        dd2: {
+          action: 'DD',
+          params: {
+            FunctionName: {value: 'testdd'},
+            InvocationType: {value: 'RequestResponse'},
+            event: {
+              all: {
+                runId: { ref: 'intro.vars.uniqueId' }
+              }
+            }
+          }
+        },
+      }
+    },
     intro: {
+      index: 0,
       transformers: {
         uniqueId: {helper: 'uuid'}
       },
@@ -946,14 +1047,8 @@ const test13 = {
         },
       }
     },
-    main: {
-      transformers: {
-        s3Object: {ref: 'intro.resourceReferences.dd_resources.s3Object'},
-      },
-      dependencies: {
-      }
-    },
     outro: {
+      index: 2,
       transformers: {
       },
       dependencies: {
@@ -963,4 +1058,4 @@ const test13 = {
   event: {},
 }
 
-generateTests('Basic', [test1, test2, test3, test4, test5, test6, test7, test8, test9, test10, test11, test12, test13])
+generateTests('Basic', [test1, test2, test3, test31, test4, test5, test6, test7, test8, test9, test10, test11, test12, test13])

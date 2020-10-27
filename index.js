@@ -170,7 +170,10 @@ function processExplorandaParamValue(value, processParamValue) {
         }
         sourceConfig.formatter = norm(formatter)
       } else {
-        sourceConfig.formatter = processParamValue(formatter)
+        const formatterValue = processParamValue(formatter)
+        if (_.isString(formatterValue) || _.isNumber(formatterValue) || _.isArray(formatterValue)) {
+          sourceConfig.formatter = norm((params) => _.get(params, formatterValue))
+        }
       }
     }
     return sourceConfig
@@ -416,33 +419,25 @@ function logStage(stage, vars, dependencies, resourceReferences, fulfilledResour
 // If this signature changes, remember to update the test harness or tests will break.
 function createTask(config, helperFunctions, dependencyHelpers, recordCollectors) {
   trace(`Building tasks with config: ${safeStringify(config)}`)
+  const expectations = _.cloneDeep(_.get(config, 'expectations') || {})
+  const conditions = _.cloneDeep(_.get(config, 'conditions') || {})
+  // TODO document why the expectations key is weird
+  delete config.expectations
+  delete config.conditions
   function addRecordCollectors(gopher) {
     _.each(recordCollectors, (v, k) => {
       gopher.recordCollectors[k] = v
     })
   }
   const mergedDependencyBuilders = dependencyBuilders(dependencyHelpers)
-  const makeIntroDependencies = function(event, context) {
-    const stageConfig = _.get(config, ['intro', 'transformers'])
-    trace('intro')
-    const input = transformInput("intro", stageConfig, _.partial(processParams, helperFunctions, {event, context, config}, false))
-    return {...{vars: input}, ...generateDependencies({stage: input, event, context, config}, _.get(config, 'intro.dependencies'), helperFunctions, mergedDependencyBuilders) }
-  }
-  const makeMainDependencies = function(event, context, intro) {
-    const stageConfig = _.get(config, ['main', 'transformers'])
-    trace('main')
-    const input = transformInput("main", stageConfig, _.partial(processParams, helperFunctions, {event, context, intro, config}, false))
-    return {...{vars: input}, ...generateDependencies({stage: input, event, context, intro, config}, _.get(config, 'main.dependencies'), helperFunctions, mergedDependencyBuilders) }
-  }
-  const makeOutroDependencies = function(event, context, intro, main) {
-    const stageConfig = _.get(config, ['outro', 'transformers'])
-    trace('outro')
-    const input = transformInput("outro", stageConfig, _.partial(processParams, helperFunctions, {event, context, intro, main, config}, false))
-    return {...{vars: input}, ...generateDependencies({stage: input, event, context, intro, main, config}, _.get(config, 'outro.dependencies'), helperFunctions, mergedDependencyBuilders) }
+  function makeStageDependencies(stageName, context) {
+    const stageConfig = _.get(config, [stageName, 'transformers'])
+    trace(stageName)
+    const input = transformInput(stageName, stageConfig, _.partial(processParams, helperFunctions, context, false))
+    return {...{vars: input}, ...generateDependencies({...{stage: input}, ...context}, _.get(config, [stageName, 'dependencies']), helperFunctions, mergedDependencyBuilders) }
   }
   return function(event, context, callback) {
     info(`event: ${safeStringify(event)}`)
-    const expectations = _.cloneDeep(_.get(config, 'expectations') || {})
     const errorOnUnfulfilledExpectation = _.isBoolean(_.get(config, 'errorOnUnfulfilledExpectation')) ? _.get(config, 'errorOnUnfulfilledExpectation') : true
     function markExpectationsFulfilled(fulfilledResources) {
       _.each(fulfilledResources, (r) => {
@@ -453,31 +448,17 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
         })
       })
     }
-    function performIntro(callback) {
-      const {vars, dependencies, resourceReferences, fulfilledResources} = makeIntroDependencies(event, context)
-      markExpectationsFulfilled(fulfilledResources)
-      logStage('intro', vars, dependencies, resourceReferences, fulfilledResources)
-      const reporter = exploranda.Gopher(dependencies);
-      addRecordCollectors(reporter)
-      reporter.report((e, n) => callback(e, {vars, resourceReferences, results: n}));
-    }
-    function performMain(intro, callback) {
-      const {vars, dependencies, resourceReferences, fulfilledResources} = makeMainDependencies(event, context, intro)
-      markExpectationsFulfilled(fulfilledResources)
-      logStage('main', vars, dependencies, resourceReferences, fulfilledResources)
-      const reporter = exploranda.Gopher(dependencies);
-      trace('finished main')
-      addRecordCollectors(reporter)
-      reporter.report((e, n) => callback(e, intro, {vars, resourceReferences, results: n}));
-    }
-    function performOutro(intro, main, callback) {
-      trace('starting outro')
-      const {vars, dependencies, resourceReferences, fulfilledResources} = makeOutroDependencies(event, context, intro, main)
-      markExpectationsFulfilled(fulfilledResources)
-      logStage('outro', vars, dependencies, resourceReferences, fulfilledResources)
-      const reporter = exploranda.Gopher(dependencies);
-      addRecordCollectors(reporter)
-      reporter.report((e, n) => callback(e, intro, main, {vars, resourceReferences, results: n}));
+    function stageExecutor(stageName) {
+      return function performStage(...args) {
+        const stageContext = {...(args.length === 2 ? args[0] : {}), ...{event, context, config}}
+        const callback = args[1] || args[0]
+        const {vars, dependencies, resourceReferences, fulfilledResources} = makeStageDependencies(stageName, stageContext)
+        markExpectationsFulfilled(fulfilledResources)
+        logStage(stageName, vars, dependencies, resourceReferences, fulfilledResources)
+        const reporter = exploranda.Gopher(dependencies);
+        addRecordCollectors(reporter)
+        reporter.report((e, n) => callback(e, { [stageName] : {vars, resourceReferences, results: n}, ...stageContext}));
+      }
     }
     function checkExpectationsFulfilled() {
       trace(`[ all expectations: ${safeStringify(expectations)} ]`)
@@ -495,13 +476,15 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
         }
       }
     }
-    function performCleanup(intro, main, outro, callback) {
+    function performCleanup(...args) {
+      const runContext = {...(args.length === 2 ? args[0] : {}), ...{event, context, config}}
+      const callback = args[1] || args[0]
       setTimeout(() => {
         trace('cleanup')
         try {
           checkExpectationsFulfilled()
           const stageConfig = _.get(config, ['cleanup', 'transformers'])
-          callback(null, transformInput('cleanup', stageConfig,  _.partial(processParams, helperFunctions, {event, context, intro, main, outro}, false)))
+          callback(null, transformInput('cleanup', stageConfig,  _.partial(processParams, helperFunctions, runContext, false)))
         } catch(e) {
           callback(e)
         }
@@ -509,12 +492,13 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
     }
     if (testEvent('task', config.conditions, _.partial(processParams, helperFunctions, {event, context}, false))) {
       debug(`event ${event ? JSON.stringify(event) : event} matched for processing`)
-      async.waterfall([
-        performIntro,
-        performMain,
-        performOutro,
-        performCleanup,
-      ], callback)
+      const stageFunctions = _(config).toPairs().sortBy(([name, conf]) => conf.index).map(([name, conf], index) => {
+        if (conf.index !== index) {
+          warn(`stage ${name} has index ${conf.index} but is being inserted at ${index}`)
+        }
+        return stageExecutor(name)
+      }).value()
+      async.waterfall(_.concat(stageFunctions, [performCleanup]), callback)
     } else {
       debug(`event ${event ? JSON.stringify(event) : event} did not match for processing`)
       try {

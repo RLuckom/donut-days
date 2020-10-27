@@ -8,11 +8,13 @@ const exp1 = {
       dependencies: {
       },
       dependencyInput: {
-        params: ({string, eventParam, sourceOnly, simpleConstructedSource, complexConstructedSource, arrayConstructedSource, sourceAndFormatter, sourceAndFormatterFunction, sourceAndFormatterFunctionAs, sourceAndFormatterFunctionArrayLike}) => {
+        params: ({string, eventParam, sourceOnly, simpleConstructedSource, complexConstructedSource, arrayConstructedSource, sourceAndFormatter, sourceAndFormatterProcess, sourceAndFormatterFunction, sourceAndFormatterFunctionAs, sourceAndFormatterFunctionArrayLike}) => {
           const dep4 = sourceAndFormatterFunction.formatter({dep4: ['f00']})
           const dep40 = sourceAndFormatterFunctionArrayLike.formatter({dep4: ['f00']})
           const dep400 = sourceAndFormatter.formatter({dep4: ['dep4']})
           const dep4000 = sourceAndFormatterFunctionAs.formatter({dep4: ['f00']})
+          const dep40000 = sourceAndFormatterProcess.formatter({dep4: ['f00']})
+          console.log(dep40000)
           return (
             _.isEqual(string, {value: 'string param' })
             && _.isEqual(eventParam, {value: 'bar'})
@@ -26,6 +28,7 @@ const exp1 = {
             && _.isEqual(sourceAndFormatter.source, 'dep4')
             && _.isEqual(dep4, 'f00')
             && _.isEqual(dep4000, 'f00')
+            && _.isEqual(dep40000, 'f00')
             && _.isEqual(dep40, ['f00'])
           )
         }
@@ -57,6 +60,10 @@ const exp1 = {
             sourceAndFormatter: { 
               source: { configStepName: 'dep4'},
               formatter: 'dep4',
+            },
+            sourceAndFormatterProcess: { 
+              source: { configStepName: 'dep4'},
+              formatter: {value: 'dep4'},
             },
             sourceAndFormatterFunction: { 
               source: { configStepName: 'dep4'},
