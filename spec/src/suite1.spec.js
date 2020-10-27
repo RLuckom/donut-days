@@ -59,88 +59,86 @@ const test2 = {
   },
   config: {
     stages: {
-    intro: {
-      transformers: {
-        toJson: {helper: "toJson",
-          params: {
-            a: {value: 6}
+      intro: {
+        transformers: {
+          toJson: {helper: "toJson",
+            params: {
+              a: {value: 6}
+            },
           },
-        },
-        fromJson: {helper: "fromJson",
-          params: {
-            string: {value: '{"a": 6}'}
+          fromJson: {helper: "fromJson",
+            params: {
+              string: {value: '{"a": 6}'}
+            },
           },
-        },
-        not: {not: {ref: 6} },
-        isNotInList: {
-          helper: 'isInList',
-          params: {
-            list: { value: ['a'] },
-            item: { value: 'b'}
-          }
-        },
-        template: {
-          helper: 'template',
-          params: {
-            templateString: {value: '<%= a %>'},
-            templateArguments: {value: {a: 'a'}}
-          }
-        },
-        mapTemplate: {
-          helper: 'mapTemplate',
-          params: {
-            templateString: {value: '<%= a %>'},
-            templateArgumentsArray: {value: [{value: {a: 'a'}}, {value: {a: 'b'}}]}
-          }
-        },
-        isInList: {
-          helper: 'isInList',
-          params: {
-            list: {value: ['a']},
-            item: {value: 'a'}
-          }
-        },
-        qualifiedDependencyName: {
-          helper: 'qualifiedDependencyName',
-          params: {
-            configStepName: {value: 'a'},
-            dependencyName: {value: 'b'}
-          }
-        },
-        eight: {or: [{ref: 'event.foo.bar'}, {value: 8}]},
-        rest: {
-          helper: "slice",
-          params: {
-            list: {ref: 'event.list'},
-            start: {value: 1}
-          }
-        },
-        all: {
-          helper: "slice",
-          params: {
-            list: {ref: 'event.list'},
-          }
-        },
-        middle: {
-          helper: "slice",
-          params: {
-            list: {ref: 'event.list'},
-            start: {value: 1},
-            end: {value: 4},
-          }
+          not: {not: {ref: 6} },
+          isNotInList: {
+            helper: 'isInList',
+            params: {
+              list: { value: ['a'] },
+              item: { value: 'b'}
+            }
+          },
+          template: {
+            helper: 'template',
+            params: {
+              templateString: {value: '<%= a %>'},
+              templateArguments: {value: {a: 'a'}}
+            }
+          },
+          mapTemplate: {
+            helper: 'mapTemplate',
+            params: {
+              templateString: {value: '<%= a %>'},
+              templateArgumentsArray: {value: [{value: {a: 'a'}}, {value: {a: 'b'}}]}
+            }
+          },
+          isInList: {
+            helper: 'isInList',
+            params: {
+              list: {value: ['a']},
+              item: {value: 'a'}
+            }
+          },
+          qualifiedDependencyName: {
+            helper: 'qualifiedDependencyName',
+            params: {
+              configStepName: {value: 'a'},
+              dependencyName: {value: 'b'}
+            }
+          },
+          eight: {or: [{ref: 'event.foo.bar'}, {value: 8}]},
+          rest: {
+            helper: "slice",
+            params: {
+              list: {ref: 'event.list'},
+              start: {value: 1}
+            }
+          },
+          all: {
+            helper: "slice",
+            params: {
+              list: {ref: 'event.list'},
+            }
+          },
+          middle: {
+            helper: "slice",
+            params: {
+              list: {ref: 'event.list'},
+              start: {value: 1},
+              end: {value: 4},
+            }
+          },
         },
       },
-    },
-    main: {
-      dependencies: {
-        one: {
-         conditions: {
-        not: {not: {ref: 6} }
-         },
-          action: 'one'
+      main: {
+        dependencies: {
+          one: {
+            condition: { not: {ref: 6} },
+            action: 'one'
+          }
         }
       }
-    }
     }
   },
   event: {
@@ -174,24 +172,19 @@ const test31 = {
     },
   },
   config: {
-    conditions: {
-      doesMatch: [{
-        matchesAll: {
-          'event.foo.bar': 4
-        }
-      }],
-      doesNotMatch: [{
-        matchesAll: {
-          'event.foo.bar': 7
-        }
-      }]
+    condition: {
+      helper : 'matches',
+      params:  {
+        a: {ref: 'event.foo.bar'},
+        b: {value: 4}
+      }
     },
     stages: {
-    intro: {
-      transformers: {
-        one: {ref: 'event.foo.bar'},
+      intro: {
+        transformers: {
+          one: {ref: 'event.foo.bar'},
+        }
       }
-    }
     },
     cleanup: {
       transformers: {
@@ -223,18 +216,13 @@ const test3 = {
     }
   },
   config: {
-    conditions: {
-      doesMatch: [{
-        matchesAll: {
-          'event.foo.bar': 4
-        }
-      }],
-      doesNotMatch: [{
-        matchesAll: {
-          'event.foo.bar': 7
-        }
-      }]
-    }
+    condition: {
+      helper : 'matches',
+      params:  {
+        a: {ref: 'event.foo.bar'},
+        b: {value: 4}
+      }
+    },
   },
   event: {
     foo: {
@@ -245,7 +233,10 @@ const test3 = {
 }
 
 const test4 = {
-  name: 'condition matches all',
+  name: 'test40',
+  dependencyHelpers: {
+    one: (params, addDependency) => addDependency('two', 'three') 
+  },
   validators: {
     intro: {
       dependencies: {
@@ -259,12 +250,152 @@ const test4 = {
     }
   },
   config: {
-    conditions: {
-      doesNotMatch: {
-        helper: 'matches',
-        params: {
-          a: {ref: 'event.foo.bar'},
-          b: {value: 4},
+    condition: {
+      helper : 'matches',
+      params:  {
+        a: {ref: 'event.foo.bar'},
+        b: {value: 4}
+      }
+    },
+    stages: {
+      intro: {
+        transformers: {
+          one: { value: 1}
+        },
+        dependencies: {
+          foo: { action: 'one'}
+        }
+      }
+    },
+  },
+  event: {
+    foo: {
+      bar: 7
+    }
+  },
+  onComplete: (finishedSteps) => expect(finishedSteps.length).toEqual(0),
+}
+
+const test41 = {
+  name: 'test41',
+  helperFunctions: {
+    one: ({a, b}) => a + b
+  },
+  validators: {
+    intro: {
+      dependencies: {
+        nextFunction: (dep) => {
+          return (dep.accessSchema === true && dep.params.FunctionName.value === 4
+                  && dep.params.Payload.value === 5)
+        },
+      },
+      dependencyInput: {
+        one: (n) => n === 4,
+        mediaId: (m) => uuid.validate(m)
+      },
+    },
+    main: {
+    },
+    outro: {
+      dependencies: {
+      }
+    }
+  },
+  config: {
+    stages: {
+      intro: {
+        condition: {
+          helper : 'matches',
+          params:  {
+            a: {ref: 'event.foo.bar'},
+            b: {value: 4}
+          }
+        },
+        transformers: {
+          one: {ref: 'event.foo.bar'},
+          mediaId: {helper: 'uuid'},
+        },
+        dependencies: {
+          nextFunction: {
+            action: 'exploranda',
+            params: {
+              accessSchema: { value: 'dataSources.AWS.lambda.invoke'},
+              params: {
+                explorandaParams: {
+                  FunctionName: { ref: 'stage.one'},
+                  Payload: { helper: 'one' ,
+                    params: {
+                      a: { ref: 'stage.one'},
+                      b: { value: 1},
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  event: {
+    foo: {
+      bar: 4
+    }
+  },
+  onComplete: (finishedSteps) => expect(finishedSteps.length).toEqual(1),
+}
+
+const test42 = {
+  name: 'test42',
+  helperFunctions: {
+    one: ({a, b}) => a + b
+  },
+  validators: {
+    intro: {
+      dependencyInput: {
+        one: (n) => n === 7,
+        mediaId: (m) => uuid.validate(m)
+      },
+    },
+    main: {
+    },
+    outro: {
+      dependencies: {
+      }
+    }
+  },
+  config: {
+    stages: {
+      intro: {
+        condition: {
+          helper : 'matches',
+          params:  {
+            a: {ref: 'event.foo.bar'},
+            b: {value: 4}
+          }
+        },
+        transformers: {
+          one: {ref: 'event.foo.bar'},
+          mediaId: {helper: 'uuid'},
+        },
+        dependencies: {
+          nextFunction: {
+            action: 'exploranda',
+            params: {
+              accessSchema: { value: 'dataSources.AWS.lambda.invoke'},
+              params: {
+                explorandaParams: {
+                  FunctionName: { ref: 'stage.one'},
+                  Payload: { helper: 'one' ,
+                    params: {
+                      a: { ref: 'stage.one'},
+                      b: { value: 1},
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -274,7 +405,7 @@ const test4 = {
       bar: 7
     }
   },
-  onComplete: (finishedSteps) => expect(finishedSteps.length).toEqual(0),
+  onComplete: (finishedSteps) => expect(finishedSteps.length).toEqual(1),
 }
 
 const test5 = {
@@ -294,12 +425,12 @@ const test5 = {
     }
   },
   config: {
-    conditions: {
-      doesMatchCopy: [{
-        matchesAll: {
-          'event.foo.bar': 4
-        }
-      }],
+    condition: {
+      helper : 'matches',
+      params:  {
+        a: {ref: 'event.foo.bar'},
+        b: {value: 4}
+      }
     },
     stages: {
     intro: {
@@ -352,111 +483,107 @@ const test6 = {
     }
   },
   config: {
-    conditions: {
-      doesMatchCopy: [{
-        matchesAll: {
-          'event.foo.bar': 4
-        }
-      }]
+    condition: {
+      helper : 'matches',
+      params:  {
+        a: {ref: 'event.foo.bar'},
+        b: {value: 4}
+      }
     },
     stages: {
-    intro: {
-      transformers: {
-        one: {ref: 'event.foo.bar'},
+      intro: {
+        transformers: {
+          one: {ref: 'event.foo.bar'},
+        },
       },
-    },
-    outro: {
-      transformers: {
-        one: {ref: 'event.foo.bar'},
-      },
-      dependencies: {
-        accessSchemaFunction: {
-          action: 'exploranda',
-          params: {
-            dependencyName: { value: 'nextFunction' },
-            accessSchema: { value: {foo: 'bar', baz: () => 'qux'}},
-            params: {value: {
-              FunctionName: {all: {
-                value: { ref: 'stage.one'}
-              }},
-              Payload: {all: {
-                value: { helper: 'one' ,
-                  params: {
-                    a: { ref: 'stage.one'},
-                    b: { value: 1},
+      outro: {
+        transformers: {
+          one: {ref: 'event.foo.bar'},
+        },
+        dependencies: {
+          accessSchemaFunction: {
+            action: 'explorandaDeprecated',
+            params: {
+              dependencyName: { value: 'nextFunction' },
+              accessSchema: { value: {foo: 'bar', baz: () => 'qux'}},
+                params: {value: {
+                FunctionName: {all: {
+                  value: { ref: 'stage.one'}
+                }},
+                Payload: {all: {
+                  value: { helper: 'one' ,
+                    params: {
+                      a: { ref: 'stage.one'},
+                      b: { value: 1},
+                    }
                   }
+                }
                 }
               }
               }
             }
-            }
-          }
-        },
-        nextFunction: {
-          conditions: {
-            doesMatch: {
+          },
+          nextFunction: {
+            condition: {
               helper: 'matches',
               params: {
                 a: {ref: 'intro.vars.one'},
                 b: {value: 4}
               }
-            }
-          },
-          action: 'exploranda',
-          params: {
-            dependencyName: { value: 'nextFunction' },
-            accessSchema: { value: 'dataSources.AWS.lambda.invoke'},
-            params: {value: {
-              FunctionName: {all: {
-                value: { ref: 'stage.one'}
-              }},
-              Payload: {all: {
-                value: { helper: 'one' ,
-                  params: {
-                    a: { ref: 'stage.one'},
-                    b: { value: 1},
+            },
+            action: 'explorandaDeprecated',
+            params: {
+              dependencyName: { value: 'nextFunction' },
+              accessSchema: { value: 'dataSources.AWS.lambda.invoke'},
+              params: {value: {
+                FunctionName: {all: {
+                  value: { ref: 'stage.one'}
+                }},
+                Payload: {all: {
+                  value: { helper: 'one' ,
+                    params: {
+                      a: { ref: 'stage.one'},
+                      b: { value: 1},
+                    }
                   }
+                }
                 }
               }
               }
             }
-            }
-          }
-        },
-        nextFunctionDryRun: {
-          conditions: {
-            doesMatch: {
+          },
+          nextFunctionDryRun: {
+            condition: {
               helper: 'matches',
               params: {
                 a: {ref: 'intro.vars.one'},
                 b: {value: 4}
               }
-            }
-          },
-          action: 'exploranda',
-          dryRun: { value: true },
-          params: {
-            dependencyName: { value: 'nextFunction' },
-            accessSchema: { value: 'dataSources.AWS.lambda.invoke'},
-            params: {value: {
-              FunctionName: {all: {
-                value: { ref: 'stage.one'}
-              }},
-              Payload: {all: {
-                value: { helper: 'one' ,
-                  params: {
-                    a: { ref: 'stage.one'},
-                    b: { value: 1},
+            },
+            action: 'explorandaDeprecated',
+            dryRun: { value: true },
+            params: {
+              dependencyName: { value: 'nextFunction' },
+              accessSchema: { value: 'dataSources.AWS.lambda.invoke'},
+              params: {value: {
+                FunctionName: {all: {
+                  value: { ref: 'stage.one'}
+                }},
+                Payload: {all: {
+                  value: { helper: 'one' ,
+                    params: {
+                      a: { ref: 'stage.one'},
+                      b: { value: 1},
+                    }
                   }
+                }
                 }
               }
               }
             }
-            }
-          }
+          },
         },
       },
-    },
     },
   },
   event: {
@@ -495,13 +622,11 @@ const test7 = {
     }
   },
   config: {
-    conditions: {
-      doesMatchCopy: {
-        helper: "matches",
-        params: {
-          a: {ref: "event.foo.bar"},
-          b: {value: 4}
-        }
+    condition: {
+      helper : 'matches',
+      params:  {
+        a: {ref: 'event.foo.bar'},
+        b: {value: 4}
       }
     },
     stages: {
@@ -516,22 +641,20 @@ const test7 = {
       },
       dependencies: {
         nextFunctionEnabled: {
-          conditions: {
-            doesMatch: {
-              some: {
-                doesMatch: {
-                  helper: "matches",
-                  params: {
-                    a: {ref: "event.foo.bar"},
-                    b: {value: 4}
-                  }
-                },
-                doesNotMatch: {
-                  helper: "matches",
-                  params: {
-                    a: {ref: "event.foo.bar"},
-                    b: {value: 5}
-                  }
+          condition: {
+            some: {
+              doesMatch: {
+                helper: "matches",
+                params: {
+                  a: {ref: "event.foo.bar"},
+                  b: {value: 4}
+                }
+              },
+              doesNotMatch: {
+                helper: "matches",
+                params: {
+                  a: {ref: "event.foo.bar"},
+                  b: {value: 5}
                 }
               }
             }
@@ -548,22 +671,20 @@ const test7 = {
           }
         },
         nextFunctionDisabled: {
-          conditions: {
-            doesNotMatch: {
-              every: {
-                doesMatch: {
-                  helper: "matches",
-                  params: {
-                    a: {ref: "event.foo.bar"},
-                    b: {value: 4}
-                  }
-                },
-                doesNotMatch: {
-                  helper: "matches",
-                  params: {
-                    a: {ref: "event.foo.bar"},
-                    b: {value: 5}
-                  }
+          condition: {
+            every: {
+              doesMatch: {
+                helper: "matches",
+                params: {
+                  a: {ref: "event.foo.bar"},
+                  b: {value: 4}
+                }
+              },
+              doesNotMatch: {
+                helper: "matches",
+                params: {
+                  a: {ref: "event.foo.bar"},
+                  b: {value: 5}
                 }
               }
             }
@@ -1154,4 +1275,4 @@ const test13 = {
   event: {},
 }
 
-generateTests('Basic', [test1, test2, test3, test31, test4, test5, test6, test7, test8, test9, test91, test10, test11, test12, test13])
+generateTests('Basic', [test1, test2, test3, test31, test4, test41, test42, test5, test6, test7, test8, test9, test91, test10, test11, test12, test13])

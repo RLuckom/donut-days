@@ -330,7 +330,7 @@ function dependencyBuilders(helpers) {
       exploranda: (params, addDependency, addResourceReference, getDependencyName, processParams) => {
         addDependency(params.dependencyName, {
           accessSchema: _.isString(params.accessSchema) ? _.get(exploranda, params.accessSchema) : params.accessSchema,
-          params: processParams(params.params)
+          params: params.params
         })
       },
       explorandaDeprecated: (params, addDependency, addResourceReference, getDependencyName, processParams) => {
@@ -378,7 +378,7 @@ function generateDependencies(input, config, transformers, mergedDependencyBuild
     return name
   }
   _.each(config, (desc, name) => {
-    if (testEvent(name, desc.conditions, _.partial(processParams, transformers, input, false))) {
+    if (testEvent(name, desc.condition, _.partial(processParamValue, transformers, input, false))) {
       builder = mergedDependencyBuilders[desc.action]
       return builder(
         processParams(transformers, input, false, desc.params),
@@ -401,11 +401,14 @@ function stringableDependency(dep) {
   return stringable
 }
 
-const testEvent = function(name, conditions, processParams) {
-  const notApplicable = !conditions
-  const processed = processParams(conditions)
-  const result = _.every(_.values(processed))
-  trace(`Testing conditions for ${name}: [ conditions: ${conditions ? JSON.stringify(conditions) : conditions} ] [ processed: ${_.isObjectLike(processed) ? JSON.stringify(processed) : processed} ] [ result: ${result} ]`)
+const testEvent = function(name, condition, processParamValue) {
+  const notApplicable = !condition
+  let processed = null
+  if (condition) {
+    processed = processParamValue(condition)
+  }
+  const result = notApplicable || processed
+  trace(`Testing condition for ${name}: [ condition: ${condition ? JSON.stringify(condition) : condition} ] [ notApplicable: ${notApplicable} ] [ processResult: ${_.isObjectLike(processed) ? JSON.stringify(processed) : processed} ] [ overAllResult: ${result} ]`)
   return result
 }
 
@@ -420,7 +423,7 @@ function logStage(stage, vars, dependencies, resourceReferences, fulfilledResour
 function createTask(config, helperFunctions, dependencyHelpers, recordCollectors) {
   trace(`Building tasks with config: ${safeStringify(config)}`)
   const expectations = _.cloneDeep(_.get(config, 'expectations') || {})
-  const conditions = _.cloneDeep(_.get(config, 'conditions') || {})
+  const condition = _.cloneDeep(_.get(config, 'condition'))
   const cleanup = _.cloneDeep(_.get(config, 'cleanup') || {})
   const overrides = _.cloneDeep(_.get(config, 'overrides') || {})
   const stages = _.cloneDeep(_.get(config, 'stages' || {}))
@@ -435,7 +438,9 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
     const stageConfig = _.get(stages, [stageName, 'transformers'])
     trace(stageName)
     const input = transformInput(stageName, stageConfig, _.partial(processParams, helperFunctions, context, false))
-    return {...{vars: input}, ...generateDependencies({...{stage: input}, ...context}, _.get(stages, [stageName, 'dependencies']), helperFunctions, mergedDependencyBuilders) }
+    const stageEnabled = testEvent(stageName, _.get(stages, [stageName, 'condition']), _.partial(processParamValue, helperFunctions, {...context, ...{stage: input}}, false))
+    const stageDependencies = stageEnabled ? generateDependencies({...{stage: input}, ...context}, _.get(stages, [stageName, 'dependencies']), helperFunctions, mergedDependencyBuilders) : {}
+    return {...{vars: input}, ...stageDependencies }
   }
   return function(event, context, callback) {
     info(`event: ${safeStringify(event)}`)
@@ -491,7 +496,7 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
         }
       }, 0)
     }
-    if (testEvent('task', conditions, _.partial(processParams, helperFunctions, {event, context}, false))) {
+    if (testEvent('task', condition, _.partial(processParamValue, helperFunctions, {event, context}, false))) {
       debug(`event ${event ? JSON.stringify(event) : event} matched for processing`)
       const stageFunctions = _(stages).toPairs().sortBy(([name, conf]) => conf.index).map(([name, conf], index) => {
         if (conf.index !== index) {
