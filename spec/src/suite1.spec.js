@@ -150,7 +150,7 @@ const test2 = {
 }
 
 const test31 = {
-  name: 'condition matches',
+  name: 'test31',
   validators: {
     intro: {
       dependencyInput: {
@@ -164,7 +164,12 @@ const test31 = {
     outro: {
       dependencies: {
       }
-    }
+    },
+    cleanup: {
+      dependencyInput: {
+        one: (n) => n === 4,
+      },
+    },
   },
   config: {
     conditions: {
@@ -183,6 +188,11 @@ const test31 = {
       transformers: {
         one: {ref: 'event.foo.bar'},
       }
+    },
+    cleanup: {
+      transformers: {
+        one: {ref: 'event.foo.bar'},
+      }
     }
   },
   event: {
@@ -190,6 +200,7 @@ const test31 = {
       bar: 4
     }
   },
+  output: {one: 4},
   onComplete: (finishedSteps) => expect(finishedSteps.length).toEqual(1),
 }
 

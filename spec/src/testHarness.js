@@ -5,9 +5,10 @@ const main = rewire('../../index.js')
 function makeExplorandaMock(validators, config) {
   let calls = 0
   const newConfig = _.cloneDeep(config)
-  const {conditions, expectations} = newConfig
+  const {conditions, expectations, cleanup} = newConfig
   delete newConfig.expectations
   delete newConfig.conditions
+  delete newConfig.cleanup
   const keys = _(newConfig).toPairs().sort(([n, c]) => c.index).map(([n, c]) => n).value()
 
   const finishedSteps = []
@@ -81,7 +82,7 @@ function newTransformInput(original, validators) {
 
 function generateTests(suiteName, testObjects) {
   describe(suiteName, () => {
-    _.map(testObjects, ({expectError, name, onComplete, validators, config, event, context, helperFunctions, dependencyHelpers}) => {
+    _.map(testObjects, ({expectError, name, onComplete, validators, config, event, context, helperFunctions, dependencyHelpers, output}) => {
       it(name, (done) => {
         const originalTransformInput = main.__get__('transformInput')
         const explorandaMock = makeExplorandaMock(validators, config)
@@ -89,6 +90,9 @@ function generateTests(suiteName, testObjects) {
         const unsetTransformInput = main.__set__('transformInput', newTransformInput(originalTransformInput, validators))
         main.createTask(config, helperFunctions || {}, dependencyHelpers || {})(event, context || {}, (e, r) => {
           (onComplete || _.noop)(explorandaMock.finishedSteps)
+          if (output) {
+            expect(output).toEqual(r)
+          }
           if (expectError) {
             expect(e).toBeTruthy()
           } else {

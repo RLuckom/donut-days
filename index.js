@@ -421,9 +421,11 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
   trace(`Building tasks with config: ${safeStringify(config)}`)
   const expectations = _.cloneDeep(_.get(config, 'expectations') || {})
   const conditions = _.cloneDeep(_.get(config, 'conditions') || {})
+  const cleanup = _.cloneDeep(_.get(config, 'cleanup') || {})
   // TODO document why the expectations key is weird
   delete config.expectations
   delete config.conditions
+  delete config.cleanup
   function addRecordCollectors(gopher) {
     _.each(recordCollectors, (v, k) => {
       gopher.recordCollectors[k] = v
@@ -483,8 +485,8 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
         trace('cleanup')
         try {
           checkExpectationsFulfilled()
-          const stageConfig = _.get(config, ['cleanup', 'transformers'])
-          callback(null, transformInput('cleanup', stageConfig,  _.partial(processParams, helperFunctions, runContext, false)))
+          const stageConfig = _.get(cleanup, 'transformers')
+          callback(null, transformInput('cleanup', stageConfig, _.partial(processParams, helperFunctions, runContext, false)))
         } catch(e) {
           callback(e)
         }
