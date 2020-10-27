@@ -240,7 +240,7 @@ function dependencyBuilders(helpers) {
       },
       recurse: (params, addDependency, addResourceReference, getDependencyName, processParams, processParamValue) => {
         const recursionDepth = (processParamValue({ref: 'event.recursionDepth'}) || 1) + 1
-        const allowedRecursionDepth = processParamValue({ref: 'config.overrides.MAX_RECURSION_DEPTH'}) || defaults.MAX_RECURSION_DEPTH
+        const allowedRecursionDepth = processParamValue({ref: 'overrides.MAX_RECURSION_DEPTH'}) || defaults.MAX_RECURSION_DEPTH
         if (allowedRecursionDepth > recursionDepth) {
           addDependency(null,  {
             accessSchema: exploranda.dataSources.AWS.lambda.invoke,
@@ -422,10 +422,12 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
   const expectations = _.cloneDeep(_.get(config, 'expectations') || {})
   const conditions = _.cloneDeep(_.get(config, 'conditions') || {})
   const cleanup = _.cloneDeep(_.get(config, 'cleanup') || {})
+  const overrides = _.cloneDeep(_.get(config, 'overrides') || {})
   // TODO document why the expectations key is weird
   delete config.expectations
   delete config.conditions
   delete config.cleanup
+  delete config.overrides
   function addRecordCollectors(gopher) {
     _.each(recordCollectors, (v, k) => {
       gopher.recordCollectors[k] = v
@@ -452,7 +454,7 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
     }
     function stageExecutor(stageName) {
       return function performStage(...args) {
-        const stageContext = {...(args.length === 2 ? args[0] : {}), ...{event, context, config}}
+        const stageContext = {...(args.length === 2 ? args[0] : {}), ...{event, context, config, overrides}}
         const callback = args[1] || args[0]
         const {vars, dependencies, resourceReferences, fulfilledResources} = makeStageDependencies(stageName, stageContext)
         markExpectationsFulfilled(fulfilledResources)

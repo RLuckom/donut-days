@@ -702,6 +702,67 @@ const test9 = {
   },
 }
 
+const test91 = {
+  name: 'test91',
+  validators: {
+    intro: {
+      dependencies: {
+      },
+      dependencyInput: {}
+    },
+    main: {
+      dependencies: {
+      },
+      dependencyInput: {}
+    },
+    outro: {
+      dependencies: {
+      },
+      dependencyInput: {}
+    }
+  },
+  config: {
+    overrides: {
+      MAX_RECURSION_DEPTH: 2
+    },
+    intro: {
+      transformers: {
+      },
+      dependencies: {
+      }
+    },
+    main: {
+      transformers: {
+      },
+      dependencies: {
+      }
+    },
+    outro: {
+      transformers: {
+      },
+      dependencies: {
+        recursion: {
+          action: 'recurse',
+          params: {
+            Payload: { all: {
+                a: { ref: 'event.a'},
+                b: { value: 1},
+              }
+            }
+          }
+        },
+      },
+    },
+  },
+  event: {
+    a: 4,
+    recursionDepth: 2,
+  },
+  context: {
+    invokedFunctionArn: "self"
+  },
+}
+
 const test10 = {
   name: 'test10',
   validators: {
@@ -1069,4 +1130,4 @@ const test13 = {
   event: {},
 }
 
-generateTests('Basic', [test1, test2, test3, test31, test4, test5, test6, test7, test8, test9, test10, test11, test12, test13])
+generateTests('Basic', [test1, test2, test3, test31, test4, test5, test6, test7, test8, test9, test91, test10, test11, test12, test13])
