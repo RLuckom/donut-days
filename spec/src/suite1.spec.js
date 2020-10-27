@@ -58,6 +58,7 @@ const test2 = {
     }
   },
   config: {
+    stages: {
     intro: {
       transformers: {
         toJson: {helper: "toJson",
@@ -140,6 +141,7 @@ const test2 = {
         }
       }
     }
+    }
   },
   event: {
     list: [1, 2, 3, 4, 5],
@@ -184,10 +186,12 @@ const test31 = {
         }
       }]
     },
+    stages: {
     intro: {
       transformers: {
         one: {ref: 'event.foo.bar'},
       }
+    }
     },
     cleanup: {
       transformers: {
@@ -297,6 +301,7 @@ const test5 = {
         }
       }],
     },
+    stages: {
     intro: {
       transformers: {
         one: {ref: 'event.foo.bar'},
@@ -304,6 +309,7 @@ const test5 = {
       },
       dependencies: {
       }
+    }
     }
   },
   event: {
@@ -353,6 +359,7 @@ const test6 = {
         }
       }]
     },
+    stages: {
     intro: {
       transformers: {
         one: {ref: 'event.foo.bar'},
@@ -450,6 +457,7 @@ const test6 = {
         },
       },
     },
+    },
   },
   event: {
     foo: {
@@ -496,6 +504,7 @@ const test7 = {
         }
       }
     },
+    stages: {
     intro: {
       transformers: {
         one: {ref: 'event.foo.bar'},
@@ -572,6 +581,7 @@ const test7 = {
         }
       }
     },
+    },
   },
   event: {
     foo: {
@@ -607,6 +617,7 @@ const test8 = {
     }
   },
   config: {
+    stages: {
     intro: {
       transformers: {
       },
@@ -634,6 +645,7 @@ const test8 = {
           }
         },
       },
+    },
     },
   },
   event: {
@@ -664,6 +676,7 @@ const test9 = {
     }
   },
   config: {
+    stages: {
     intro: {
       transformers: {
       },
@@ -690,6 +703,7 @@ const test9 = {
             }
           }
         },
+      },
       },
     },
   },
@@ -725,6 +739,7 @@ const test91 = {
     overrides: {
       MAX_RECURSION_DEPTH: 2
     },
+    stages: {
     intro: {
       transformers: {
       },
@@ -750,6 +765,7 @@ const test91 = {
               }
             }
           }
+        },
         },
       },
     },
@@ -796,6 +812,7 @@ const test10 = {
     }
   },
   config: {
+    stages: {
     intro: {
       transformers: {
         uniqueId: {helper: 'uuid'}
@@ -843,6 +860,7 @@ const test10 = {
       dependencies: {
       }
     },
+    },
   },
   event: {},
 }
@@ -877,6 +895,7 @@ const test11 = {
         }
       }
     },
+    stages: {
     intro: {
       transformers: {
       },
@@ -899,6 +918,7 @@ const test11 = {
           }
         },
       },
+    },
     },
   },
   event: {
@@ -944,6 +964,7 @@ const test12 = {
         }
       }
     },
+    stages: {
     intro: {
       transformers: {
       },
@@ -966,6 +987,7 @@ const test12 = {
           }
         },
       },
+    },
     },
   },
   event: {
@@ -1039,6 +1061,7 @@ const test13 = {
     }
   },
   config: {
+    stages: {
     main: {
       index: 1,
       transformers: {
@@ -1126,6 +1149,7 @@ const test13 = {
       dependencies: {
       }
     },
+  },
   },
   event: {},
 }

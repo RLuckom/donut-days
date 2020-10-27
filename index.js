@@ -423,11 +423,8 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
   const conditions = _.cloneDeep(_.get(config, 'conditions') || {})
   const cleanup = _.cloneDeep(_.get(config, 'cleanup') || {})
   const overrides = _.cloneDeep(_.get(config, 'overrides') || {})
+  const stages = _.cloneDeep(_.get(config, 'stages' || {}))
   // TODO document why the expectations key is weird
-  delete config.expectations
-  delete config.conditions
-  delete config.cleanup
-  delete config.overrides
   function addRecordCollectors(gopher) {
     _.each(recordCollectors, (v, k) => {
       gopher.recordCollectors[k] = v
@@ -435,10 +432,10 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
   }
   const mergedDependencyBuilders = dependencyBuilders(dependencyHelpers)
   function makeStageDependencies(stageName, context) {
-    const stageConfig = _.get(config, [stageName, 'transformers'])
+    const stageConfig = _.get(stages, [stageName, 'transformers'])
     trace(stageName)
     const input = transformInput(stageName, stageConfig, _.partial(processParams, helperFunctions, context, false))
-    return {...{vars: input}, ...generateDependencies({...{stage: input}, ...context}, _.get(config, [stageName, 'dependencies']), helperFunctions, mergedDependencyBuilders) }
+    return {...{vars: input}, ...generateDependencies({...{stage: input}, ...context}, _.get(stages, [stageName, 'dependencies']), helperFunctions, mergedDependencyBuilders) }
   }
   return function(event, context, callback) {
     info(`event: ${safeStringify(event)}`)
@@ -494,9 +491,9 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
         }
       }, 0)
     }
-    if (testEvent('task', config.conditions, _.partial(processParams, helperFunctions, {event, context}, false))) {
+    if (testEvent('task', conditions, _.partial(processParams, helperFunctions, {event, context}, false))) {
       debug(`event ${event ? JSON.stringify(event) : event} matched for processing`)
-      const stageFunctions = _(config).toPairs().sortBy(([name, conf]) => conf.index).map(([name, conf], index) => {
+      const stageFunctions = _(stages).toPairs().sortBy(([name, conf]) => conf.index).map(([name, conf], index) => {
         if (conf.index !== index) {
           warn(`stage ${name} has index ${conf.index} but is being inserted at ${index}`)
         }

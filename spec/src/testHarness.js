@@ -5,12 +5,8 @@ const main = rewire('../../index.js')
 function makeExplorandaMock(validators, config) {
   let calls = 0
   const newConfig = _.cloneDeep(config)
-  const {conditions, expectations, cleanup, overrides} = newConfig
-  delete newConfig.expectations
-  delete newConfig.conditions
-  delete newConfig.cleanup
-  delete newConfig.overrides
-  const keys = _(newConfig).toPairs().sort(([n, c]) => c.index).map(([n, c]) => n).value()
+  const {conditions, expectations, cleanup, overrides, stages} = newConfig
+  const keys = _(stages).toPairs().sort(([n, c]) => c.index).map(([n, c]) => n).value()
 
   const finishedSteps = []
   function reporter(validator) {

@@ -47,6 +47,7 @@ const exp1 = {
     }
   },
   config: {
+    stages: {
     intro: {
       transformers: {
         params: {
@@ -80,6 +81,7 @@ const exp1 = {
           }
         }
       },
+    },
     },
   },
   event: {
