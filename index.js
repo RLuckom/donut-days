@@ -88,7 +88,7 @@ function processParams(helperFunctions, input, requireValue, params) {
     if (_.isNull(output[k]) || _.isUndefined(output[k]) && requireValue) {
       error(`parameter ${k} returned null or undefined value from schema ${safeStringify(v)} : ${output[k]}`)
     }
-    trace(`Processed param [ name: ${k} ] [ plan: ${v ? JSON.stringify(v) : v} ] [ input: ${_.isObjectLike(input) ? JSON.stringify(input) : input} ] [ result: ${_.isObjectLike(output[k]) ? JSON.stringify(output[k]) : output[k]} ]`)
+    trace(`Processed param [ name: ${k} ] [ plan: ${safeStringify(v)} ] [ input: ${safeStringify(input)} ] [ result: ${safeStringify(output[k])} ]`)
   })
   return output
 }
@@ -215,7 +215,22 @@ function processParamValue(helperFunctions, input, requireValue, value) {
 
 function safeStringify(o) {
   if (_.isObjectLike(o)) {
-    return JSON.stringify(o)
+    const originalBufferJson = Buffer.prototype.toJSON
+    Buffer.prototype.toJSON = function() { return this }
+    let res
+    try {
+      res = JSON.stringify(o, (k, v) => {
+        if (Buffer.isBuffer(v)) {
+          return `Buffer: ${v.toString('base64')}`
+        } else {
+          return v
+        }
+      }, 2)
+      return res
+    } catch(e) {
+      Buffer.prototype.toJSON = originalBufferJson
+      throw e
+    }
   } else {
     return o
   }
@@ -413,7 +428,7 @@ const testEvent = function(name, condition, processParamValue) {
 }
 
 function logStage(stage, vars, dependencies, resourceReferences, fulfilledResources) {
-  trace(`${stage}: [ vars: ${_.isObjectLike(vars) ? JSON.stringify(vars) : vars} ] [ deps: ${JSON.stringify(_.reduce(dependencies, (acc, v, k) => {
+  trace(`${stage}: [ vars: ${_.isObjectLike(vars) ? safeStringify(vars) : vars} ] [ deps: ${safeStringify(_.reduce(dependencies, (acc, v, k) => {
     acc[k] = stringableDependency(v)
     return acc
   }, {}))} ] [ resourceReferences: ${safeStringify(resourceReferences)} ] [ fulfilledResources: ${safeStringify(fulfilledResources)} ]`)
