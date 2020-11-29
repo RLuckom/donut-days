@@ -263,7 +263,7 @@ function dependencyBuilders(helpers) {
               }},
             }
           })
-        } else if (_.isArray(url)) {
+        } else if (_.isArray(url) && url.length > 0 ) {
           addDependency(null,  {
             accessSchema: {
               name: 'GET url',
@@ -275,7 +275,7 @@ function dependencyBuilders(helpers) {
               })}
             }
           })
-        } else if (params.apiConfig) {
+        } else if (params.apiConfig && !(_.isArray(params.apiConfig) && params.apiConfig.length < 1)) {
           addDependency(null,  {
             accessSchema: {
               name: 'GET url',
