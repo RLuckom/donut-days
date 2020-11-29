@@ -4,10 +4,6 @@ const async = require('async')
 const _ = require('lodash');
 const uuid = require('uuid')
 
-const apiConfig = {
-  region: process.env.AWS_REGION
-}
-
 const defaults = {
   MAX_RECURSION_DEPTH: 3
 }
@@ -252,6 +248,44 @@ function dependencyBuilders(helpers) {
             }
           }
         })
+      },
+      genericApi: (params, addDependency) => {
+        const url = params.url || params.uri
+        if (_.isString(url)) {
+          addDependency(null,  {
+            accessSchema: {
+              name: 'GET url',
+              dataSource: 'GENERIC_API',
+            },
+            params: {
+              apiConfig: {value: {
+                url: url
+              }},
+            }
+          })
+        } else if (_.isArray(url)) {
+          addDependency(null,  {
+            accessSchema: {
+              name: 'GET url',
+              dataSource: 'GENERIC_API',
+            },
+            params: {
+              apiConfig: {value: _.map(url, (url) => {
+                return {url}
+              })}
+            }
+          })
+        } else if (params.apiConfig) {
+          addDependency(null,  {
+            accessSchema: {
+              name: 'GET url',
+              dataSource: 'GENERIC_API',
+            },
+            params: {
+              apiConfig: { value: params.apiConfig }
+            }
+          })
+        }
       },
       recurse: (params, addDependency, addResourceReference, getDependencyName, processParams, processParamValue) => {
         const recursionDepth = (processParamValue({ref: 'event.recursionDepth'}) || 1) + 1
