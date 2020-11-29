@@ -180,8 +180,8 @@ function processExplorandaParamValue(value, processParamValue) {
 
 function processParamValue(helperFunctions, input, requireValue, value) {
   const transformers = {...builtInTransformations, ...helperFunctions}
-  if (value.value) {
-    return value.value
+  if (value.value || _.isFunction(value)) {
+    return value.value || value
   } else if (value.explorandaParams) {
     return _.reduce(value.explorandaParams, (acc, v, k) => {
       acc[k] = processExplorandaParamValue(v, _.partial(processParamValue, helperFunctions, input, requireValue))
