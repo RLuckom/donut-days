@@ -408,6 +408,7 @@ function getQualifiedName(prefix, depName) {
 
 function generateDependencies(input, config, transformers, mergedDependencyBuilders) {
   const dependencies = {}
+  const dependencyToConfigStepMap = {}
   const resourceReferences = {}
   const fulfilledResources = []
   function addFullfilledResource(ref) {
@@ -423,6 +424,10 @@ function generateDependencies(input, config, transformers, mergedDependencyBuild
       console.log(`Would add dependency ${name} consisting of ${JSON.stringify(stringableDependency(dep))}`)
     } else {
       dependencies[name] = dep
+      if (!dependencyToConfigStepMap[prefix]) {
+        dependencyToConfigStepMap[prefix] = []
+      }
+      dependencyToConfigStepMap[prefix].push(name)
     }
     return name
   }
@@ -441,7 +446,16 @@ function generateDependencies(input, config, transformers, mergedDependencyBuild
       )
     }
   })
-  return {dependencies, resourceReferences, fulfilledResources}
+  const formatters = _.map(dependencyToConfigStepMap, (addedDepNames, configStepName) => {
+    return function(dependencyResults) {
+      const formatter = _.get(config, [configStepName, 'formatter'])
+      if (_.isFunction(formatter)) {
+        dependencyResults[configStepName] = formatter(_.pick(dependencyResults, addedDepNames))
+      }
+      return dependencyResults
+    }
+  })
+  return {dependencies, resourceReferences, fulfilledResources, formatters}
 }
 
 function stringableDependency(dep) {
@@ -507,12 +521,15 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
       return function performStage(...args) {
         const stageContext = {...(args.length === 2 ? args[0] : {}), ...{event, context, config, overrides}}
         const callback = args[1] || args[0]
-        const {vars, dependencies, resourceReferences, fulfilledResources} = makeStageDependencies(stageName, stageContext)
+        const {vars, dependencies, resourceReferences, formatters, fulfilledResources} = makeStageDependencies(stageName, stageContext)
         markExpectationsFulfilled(fulfilledResources)
         logStage(stageName, vars, dependencies, resourceReferences, fulfilledResources)
         const reporter = exploranda.Gopher(dependencies);
         addRecordCollectors(reporter)
-        reporter.report((e, n) => callback(e, { [stageName] : {vars, resourceReferences, results: n}, ...stageContext}));
+        reporter.report((e, n) => {
+          _.each(formatters, (f) => f(n))
+          callback(e, { [stageName] : {vars, resourceReferences, results: n}, ...stageContext});
+        })
       }
     }
     function checkExpectationsFulfilled() {

@@ -299,6 +299,18 @@ const test41 = {
     outro: {
       dependencies: {
       }
+    },
+    cleanup: {
+      dependencyInput: {
+        res: (x) => x
+      }
+    }
+  },
+  mockResults: {
+    results: {
+      nextFunction: {
+        result: 'success'
+      }
     }
   },
   config: {
@@ -318,6 +330,7 @@ const test41 = {
         dependencies: {
           nextFunction: {
             action: 'exploranda',
+            formatter: ({nextFunction}) => nextFunction.result,
             params: {
               accessSchema: { value: 'dataSources.AWS.lambda.invoke'},
               params: {
@@ -335,8 +348,14 @@ const test41 = {
           }
         }
       }
+    },
+    cleanup: {
+      transformers: {
+        res: {ref: 'intro.results.nextFunction' }
+      }
     }
   },
+  output: {res: 'success'},
   event: {
     foo: {
       bar: 4
