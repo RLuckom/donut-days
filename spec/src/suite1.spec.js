@@ -882,6 +882,28 @@ const test92 = {
             }
           }
         },
+        eventConfiguredDD: {
+          action: 'DD',
+          params: {
+            FunctionName: { value: 'noop'},
+            Payload: { all: {
+                a: { ref: 'event.a'},
+                b: { value: 1},
+              }
+            }
+          }
+        },
+        invoke: {
+          action: 'invokeFunction',
+          params: {
+            FunctionName: { value: 'noop'},
+            Payload: { all: {
+                a: { ref: 'event.a'},
+                b: { value: 1},
+              }
+            }
+          }
+        },
       },
       },
     },

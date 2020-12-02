@@ -236,19 +236,25 @@ function safeStringify(o) {
 function dependencyBuilders(helpers) { 
   return {
     ...{
-      invokeFunction: (params, addDependency) => {
-        addDependency('invoke',  {
-          accessSchema: exploranda.dataSources.AWS.lambda.invoke,
-          params: {
-            FunctionName: {
-              value: params.FunctionName
-            },
-            InvocationType: {value: params.InvocationType || 'Event'},
-            Payload: {
-              value: params.Payload
+      invokeFunction: (params, addDependency, addResourceReference, getDependencyName, processParams, processParamValue) => {
+        const bounceDepth = (processParamValue({ref: 'event.bounceDepth'}) || 1) + 1
+        const allowedBounceDepth = processParamValue({ref: 'overrides.MAX_BOUNCE'}) || defaults.MAX_BOUNCE
+        if (allowedBounceDepth > bounceDepth) {
+          addDependency('invoke',  {
+            accessSchema: exploranda.dataSources.AWS.lambda.invoke,
+            params: {
+              FunctionName: {
+                value: params.FunctionName
+              },
+              InvocationType: {value: params.InvocationType || 'Event'},
+              Payload: {
+                value: params.Payload
+              }
             }
-          }
-        })
+          })
+        } else {
+          error(`Max bounce depth exceeded. [ depth: ${bounceDepth} ] [ allowedBounceDepth: ${allowedBounceDepth} ] [ params: ${safeStringify(params)} ]`)
+        }
       },
       genericApi: (params, addDependency) => {
         const url = params.url || params.uri
