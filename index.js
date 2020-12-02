@@ -500,8 +500,8 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
   function makeStageDependencies(stageName, context) {
     const stageConfig = _.get(stages, [stageName, 'transformers'])
     trace(stageName)
-    const input = transformInput(stageName, stageConfig, _.partial(processParams, helperFunctions, context, false))
-    const stageEnabled = testEvent(stageName, _.get(stages, [stageName, 'condition']), _.partial(processParamValue, helperFunctions, {...context, ...{stage: input}}, false))
+    const stageEnabled = testEvent(stageName, _.get(stages, [stageName, 'condition']), _.partial(processParamValue, helperFunctions, {...context}, false))
+    const input = stageEnabled ? transformInput(stageName, stageConfig, _.partial(processParams, helperFunctions, context, false)) : {}
     const stageDependencies = stageEnabled ? generateDependencies({...{stage: input}, ...context}, _.get(stages, [stageName, 'dependencies']), helperFunctions, mergedDependencyBuilders) : {}
     return {...{vars: input}, ...stageDependencies }
   }
