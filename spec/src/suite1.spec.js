@@ -856,6 +856,45 @@ const test9 = {
   },
 }
 
+const test92 = {
+  name: 'test92',
+  validators: {
+    outro: {
+      dependencies: {
+      },
+      dependencyInput: {}
+    }
+  },
+  config: {
+    stages: {
+    outro: {
+      transformers: {
+      },
+      dependencies: {
+        dd: {
+          action: 'DD',
+          params: {
+            FunctionName: { value: 'noop'},
+            Payload: { all: {
+                a: { ref: 'event.a'},
+                b: { value: 1},
+              }
+            }
+          }
+        },
+      },
+      },
+    },
+  },
+  event: {
+    a: 4,
+    bounceDepth: 7,
+  },
+  context: {
+    invokedFunctionArn: "self"
+  },
+}
+
 const test91 = {
   name: 'test91',
   validators: {
@@ -1151,9 +1190,8 @@ const test13 = {
       dependencies: {
         dd: (dep) => { 
           const payload = JSON.parse(dep.params.Payload.value)
-
           return (
-            dep.accessSchema === true && dep.params.FunctionName.value === "testdd" &&
+            dep.accessSchema === true && payload.event.bounceDepth === 2 && dep.params.FunctionName.value === "testdd" &&
               dep.params.InvocationType.value === "Event" && uuid.validate(payload.event.runId) && uuid.validate(payload.expectations.s3Object.expectedResource.fileName)
           )
         },
@@ -1294,4 +1332,4 @@ const test13 = {
   event: {},
 }
 
-generateTests('Basic', [test1, test2, test3, test31, test4, test41, test42, test5, test6, test7, test8, test9, test91, test10, test11, test12, test13])
+generateTests('Basic', [test1, test2, test3, test31, test4, test41, test42, test5, test6, test7, test8, test9, test91, test92, test10, test11, test12, test13])

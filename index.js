@@ -5,7 +5,8 @@ const _ = require('lodash');
 const uuid = require('uuid')
 
 const defaults = {
-  MAX_RECURSION_DEPTH: 3
+  MAX_RECURSION_DEPTH: 3,
+  MAX_BOUNCE: 7
 }
 
 function log(level, message) {
@@ -308,6 +309,8 @@ function dependencyBuilders(helpers) {
         }
       },
       eventConfiguredDD: (params, addDependency, addResourceReference, getDependencyName, processParams, processParamValue, addFullfilledResource) => {
+        const bounceDepth = (processParamValue({ref: 'event.bounceDepth'}) || 1) + 1
+        const allowedBounceDepth = processParamValue({ref: 'overrides.MAX_BOUNCE'}) || defaults.MAX_BOUNCE
         const resourceReferences = processParams(params.resourceReferences)
         addResourceReference('resources', resourceReferences)
         const expectations = _.reduce(resourceReferences, (acc, ref, name) => {
@@ -322,6 +325,7 @@ function dependencyBuilders(helpers) {
           })
           return acc
         }, {})
+        if (allowedBounceDepth > bounceDepth) {
         addDependency(null,  {
           accessSchema: exploranda.dataSources.AWS.lambda.invoke,
           params: {
@@ -331,14 +335,19 @@ function dependencyBuilders(helpers) {
             InvocationType: {value: params.InvocationType || 'Event'},
             Payload: {
               value: JSON.stringify({
-                event: params.event,
+                event: {...params.event, ...{bounceDepth}},
                 config: {...params.config, ...{expectations}}
               })
             }
           }
         })
+        } else {
+          error(`Max bounce depth exceeded. [ depth: ${bounceDepth} ] [ allowedBounceDepth: ${allowedBounceDepth} ] [ params: ${safeStringify(params)} ]`)
+        }
       },
       DD: (params, addDependency, addResourceReference, getDependencyName, processParams, processParamValue, addFullfilledResource) => {
+        const bounceDepth = (processParamValue({ref: 'event.bounceDepth'}) || 1) + 1
+        const allowedBounceDepth = processParamValue({ref: 'overrides.MAX_BOUNCE'}) || defaults.MAX_BOUNCE
         const resourceReferences = processParams(params.resourceReferences)
         addResourceReference('resources', resourceReferences)
         const expectations = _.reduce(resourceReferences, (acc, ref, name) => {
@@ -353,22 +362,26 @@ function dependencyBuilders(helpers) {
           })
           return acc
         }, {})
-        addDependency(null,  {
-          accessSchema: exploranda.dataSources.AWS.lambda.invoke,
-          params: {
-            FunctionName: {
-              value: params.FunctionName
-            },
-            InvocationType: {value: params.InvocationType || 'Event'},
-            Payload: {
-              value: JSON.stringify({
-                event: params.event,
-                expectations,
+        if (allowedBounceDepth > bounceDepth) {
+          addDependency(null,  {
+            accessSchema: exploranda.dataSources.AWS.lambda.invoke,
+            params: {
+              FunctionName: {
+                value: params.FunctionName
+              },
+              InvocationType: {value: params.InvocationType || 'Event'},
+              Payload: {
+                value: JSON.stringify({
+                  event: {...params.event, ...{bounceDepth}},
+                  expectations,
                 }
-              )
+                                     )
+              }
             }
-          }
-        })
+          })
+        } else {
+          error(`Max bounce depth exceeded. [ depth: ${bounceDepth} ] [ allowedBounceDepth: ${allowedBounceDepth} ] [ params: ${safeStringify(params)} ]`)
+        }
       },
       explorandaUpdated: (params, addDependency, addResourceReference, getDependencyName, processParams) => {
         addDependency(params.dependencyName, {
