@@ -883,7 +883,7 @@ const test92 = {
           }
         },
         eventConfiguredDD: {
-          action: 'DD',
+          action: 'eventConfiguredDD',
           params: {
             FunctionName: { value: 'noop'},
             Payload: { all: {
