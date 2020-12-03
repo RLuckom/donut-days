@@ -258,8 +258,9 @@ function dependencyBuilders(helpers) {
       },
       genericApi: (params, addDependency) => {
         const url = params.url || params.uri
+        let dep;
         if (_.isString(url)) {
-          addDependency(null,  {
+          dep = {
             accessSchema: {
               name: 'GET url',
               dataSource: 'GENERIC_API',
@@ -269,9 +270,9 @@ function dependencyBuilders(helpers) {
                 url: url
               }},
             }
-          })
+          }
         } else if (_.isArray(url) && url.length > 0 ) {
-          addDependency(null,  {
+          dep = {
             accessSchema: {
               name: 'GET url',
               dataSource: 'GENERIC_API',
@@ -281,9 +282,9 @@ function dependencyBuilders(helpers) {
                 return {url}
               })}
             }
-          })
+          }
         } else if (params.apiConfig && !(_.isArray(params.apiConfig) && params.apiConfig.length < 1)) {
-          addDependency(null,  {
+          dep = {
             accessSchema: {
               name: 'GET url',
               dataSource: 'GENERIC_API',
@@ -291,8 +292,17 @@ function dependencyBuilders(helpers) {
             params: {
               apiConfig: { value: params.apiConfig }
             }
+          }
+        }
+        if (params.allow404) {
+          _.set(dep, 'accessSchema.onError', (err, res) => {
+            if (err && res.statusCode === 404) {
+              return {res: 404}
+            }
+            return {err, res}
           })
         }
+        addDependency(null, dep)
       },
       recurse: (params, addDependency, addResourceReference, getDependencyName, processParams, processParamValue) => {
         const recursionDepth = (processParamValue({ref: 'event.recursionDepth'}) || 1) + 1
