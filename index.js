@@ -294,7 +294,7 @@ function dependencyBuilders(helpers) {
             }
           }
         }
-        if (params.allow404) {
+        if (dep && params.allow404) {
           _.set(dep, 'accessSchema.onError', (err, res) => {
             if (err && res.statusCode === 404) {
               return {res: 404}
