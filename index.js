@@ -276,6 +276,7 @@ function dependencyBuilders(helpers) {
             accessSchema: {
               name: 'GET url',
               dataSource: 'GENERIC_API',
+              mergeIndividual: _.get(params, 'mergeIndividual')
             },
             params: {
               apiConfig: {value: _.map(url, (url) => {
