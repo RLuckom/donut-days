@@ -288,6 +288,10 @@ const test41 = {
           return (dep.accessSchema === true && dep.params.FunctionName.value === 4
                   && dep.params.Payload.value === 5)
         },
+        nextFunctionObjectFormatter: (dep) => {
+          return (dep.accessSchema === true && dep.params.FunctionName.value === 4
+                  && dep.params.Payload.value === 5)
+        },
       },
       dependencyInput: {
         one: (n) => n === 4,
@@ -309,6 +313,9 @@ const test41 = {
   mockResults: {
     results: {
       nextFunction: {
+        result: 'success'
+      },
+      nextFunctionObjectFormatter: {
         result: 'success'
       }
     }
@@ -345,7 +352,25 @@ const test41 = {
                 }
               }
             }
-          }
+          },
+          nextFunctionObjectFormatter: {
+            action: 'exploranda',
+            formatter: { value: ({nextFunctionObjectFormatter}) => nextFunctionObjectFormatter.result},
+            params: {
+              accessSchema: { value: 'dataSources.AWS.lambda.invoke'},
+              params: {
+                explorandaParams: {
+                  FunctionName: { ref: 'stage.one'},
+                  Payload: { helper: 'one' ,
+                    params: {
+                      a: { ref: 'stage.one'},
+                      b: { value: 1},
+                    }
+                  }
+                }
+              }
+            }
+          },
         }
       }
     },

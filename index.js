@@ -482,6 +482,12 @@ function generateDependencies(input, config, transformers, mergedDependencyBuild
       if (_.isFunction(formatter)) {
         dependencyResults[configStepName] = formatter(_.pick(dependencyResults, addedDepNames))
       }
+      else if (formatter) {
+        const resolvedFormatter = processParamValue(transformers, input, false, formatter)
+        if (_.isFunction(resolvedFormatter)) {
+          dependencyResults[configStepName] = resolvedFormatter(_.pick(dependencyResults, addedDepNames))
+        }
+      }
       return dependencyResults
     }
   })
