@@ -201,11 +201,11 @@ function processParamValue(helperFunctions, input, requireValue, value) {
   } else if (value.all) {
     return processParams(helperFunctions, input, requireValue, value.all)
   } else if (value.helper) {
-    const helper = transformers[value.helper]
+    const helper = _.get(transformers, value.helper)
     if (!_.isFunction(helper)) {
       error(`No helper function named ${value.helper}. Instead found ${safeStringify(helper)}. Available helpers: ${JSON.stringify(_.keys(transformers))}`)
     } else {
-      return transformers[value.helper](processParams(helperFunctions, input, requireValue, value.params), {processParamValue: _.partial(processParamValue, helperFunctions, input, requireValue)})
+      return helper(processParams(helperFunctions, input, requireValue, value.params), {processParamValue: _.partial(processParamValue, helperFunctions, input, requireValue)})
     }
   }
 }
