@@ -6,7 +6,8 @@ const uuid = require('uuid')
 
 const defaults = {
   MAX_RECURSION_DEPTH: 3,
-  MAX_BOUNCE: 7
+  MAX_BOUNCE: 7,
+  MAX_STRING_LENGTH: 400,
 }
 
 function log(level, message) {
@@ -218,7 +219,9 @@ function safeStringify(o) {
     try {
       res = JSON.stringify(o, (k, v) => {
         if (Buffer.isBuffer(v)) {
-          return `Buffer: ${v.toString('base64')}`
+          return `Buffer: ${_.truncate(v.toString('base64'), {length: defaults.MAX_STRING_LENGTH })}`
+        } else if (_.isString(v)) {
+          return _.truncate(v, {length: defaults.MAX_STRING_LENGTH })
         } else {
           return v
         }
