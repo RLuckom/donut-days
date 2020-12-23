@@ -11,7 +11,7 @@ const defaults = {
 }
 
 function log(level, message) {
-  if (process.env.DONUT_DAYS_DEBUG || level === 'ERROR' || level === "WARN") {
+  if (process.env.DONUT_DAYS_DEBUG === "true" || level === 'ERROR' || level === "WARN") {
     console.log(`${level}\t${message}`)
   }
 }
