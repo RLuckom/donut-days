@@ -68,8 +68,8 @@ function validateResources(resourceReferences, resourceSpec) {
 }
 
 function newTransformInput(original, validators) {
-  return function(stage, stageConfig, processParams) {
-    const result = original(stage, stageConfig, processParams)
+  return function(stage, stageConfig, processParams, log) {
+    const result = original(stage, stageConfig, processParams, log)
     const stageValidators = _.get(validators, [stage, 'dependencyInput'])
     validateDependencies(result, stageValidators)
     expect(_.keys(result).length).toEqual(_.keys(stageValidators).length)

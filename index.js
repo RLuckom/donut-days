@@ -10,21 +10,26 @@ const defaults = {
   MAX_STRING_LENGTH: 400,
 }
 
-function log(level, message) {
+function defaultLogger(level, message) {
   if (process.env.DONUT_DAYS_DEBUG === "true" || level === 'ERROR' || level === "WARN") {
     console.log(`${level}\t${message}`)
   }
 }
 
-const trace = _.partial(log, 'TRACE')
-const debug = _.partial(log, 'DEBUG')
-const info = _.partial(log, 'INFO')
-const warn = _.partial(log, 'WARN')
-const error = _.partial(log, 'ERROR')
+function makeLogger(log) {
+  log = log || defaultLogger
+  return {
+    trace: _.partial(log, 'TRACE'),
+    debug: _.partial(log, 'DEBUG'),
+    info: _.partial(log, 'INFO'),
+    warn: _.partial(log, 'WARN'),
+    error: _.partial(log, 'ERROR'),
+  }
+}
 
 // If this signature changes, remember to update the test harness or tests will break.
-function transformInput(stage, stageConfig, processParams) {
-  trace(`making input for ${stage} with ${JSON.stringify(stageConfig)}`)
+function transformInput(stage, stageConfig, processParams, log) {
+  log.trace(`making input for ${stage} with ${JSON.stringify(stageConfig)}`)
   return processParams(stageConfig)
 }
 
@@ -79,14 +84,14 @@ const builtInTransformations = {
   },
 }
 
-function processParams(helperFunctions, input, requireValue, params) {
+function processParams(helperFunctions, input, requireValue, log, params) {
   const output = {}
   _.each(params, (v, k) => {
-    output[k] = processParamValue(helperFunctions, input, requireValue, v)
+    output[k] = processParamValue(helperFunctions, input, requireValue, log, v)
     if (_.isNull(output[k]) || _.isUndefined(output[k]) && requireValue) {
-      error(`parameter ${k} returned null or undefined value from schema ${safeStringify(v)} : ${output[k]}`)
+      log.error(`parameter ${k} returned null or undefined value from schema ${safeStringify(v)} : ${output[k]}`)
     }
-    trace(`Processed param [ name: ${k} ] [ plan: ${safeStringify(v)} ] [ input: ${safeStringify(input)} ] [ result: ${safeStringify(output[k])} ]`)
+    log.trace(`Processed param [ name: ${k} ] [ plan: ${safeStringify(v)} ] [ input: ${safeStringify(input)} ] [ result: ${safeStringify(output[k])} ]`)
   })
   return output
 }
@@ -180,33 +185,33 @@ function processExplorandaParamValue(value, processParamValue) {
   }
 }
 
-function processParamValue(helperFunctions, input, requireValue, value) {
+function processParamValue(helperFunctions, input, requireValue, log, value) {
   const transformers = {...builtInTransformations, ...helperFunctions}
   if (value.value || _.isFunction(value)) {
     return value.value || value
   } else if (value.explorandaParams) {
     return _.reduce(value.explorandaParams, (acc, v, k) => {
-      acc[k] = processExplorandaParamValue(v, _.partial(processParamValue, helperFunctions, input, requireValue))
+      acc[k] = processExplorandaParamValue(v, _.partial(processParamValue, helperFunctions, input, requireValue, log))
       return acc
     }, {})
   } else if (value.ref) {
     return _.get(input, value.ref)
   } else if (value.every) {
-    return _(processParams(helperFunctions, input, requireValue, value.every)).values().every()
+    return _(processParams(helperFunctions, input, requireValue, log, value.every)).values().every()
   } else if (value.not) {
-    return !processParamValue(helperFunctions, input, requireValue, value.not)
+    return !processParamValue(helperFunctions, input, requireValue, log, value.not)
   } else if (value.some) {
-    return _(processParams(helperFunctions, input, requireValue, value.some)).values().some()
+    return _(processParams(helperFunctions, input, requireValue, log, value.some)).values().some()
   } else if (value.or) {
-    return _(value.or).map(_.partial(processParamValue, helperFunctions, input, requireValue)).find()
+    return _(value.or).map(_.partial(processParamValue, helperFunctions, input, requireValue, log)).find()
   } else if (value.all) {
-    return processParams(helperFunctions, input, requireValue, value.all)
+    return processParams(helperFunctions, input, requireValue, log, value.all)
   } else if (value.helper) {
     const helper = _.get(transformers, value.helper)
     if (!_.isFunction(helper)) {
-      error(`No helper function named ${value.helper}. Instead found ${safeStringify(helper)}. Available helpers: ${JSON.stringify(_.keys(transformers))}`)
+      log.error(`No helper function named ${value.helper}. Instead found ${safeStringify(helper)}. Available helpers: ${JSON.stringify(_.keys(transformers))}`)
     } else {
-      return helper(processParams(helperFunctions, input, requireValue, value.params), {processParamValue: _.partial(processParamValue, helperFunctions, input, requireValue)})
+      return helper(processParams(helperFunctions, input, requireValue, log, value.params), {processParamValue: _.partial(processParamValue, helperFunctions, input, requireValue, log)})
     }
   }
 }
@@ -236,7 +241,7 @@ function safeStringify(o) {
   }
 }
 
-function dependencyBuilders(helpers) { 
+function dependencyBuilders(helpers, log) { 
   return {
     ...{
       invokeFunction: (params, addDependency, addResourceReference, getDependencyName, processParams, processParamValue) => {
@@ -256,7 +261,7 @@ function dependencyBuilders(helpers) {
             }
           })
         } else {
-          error(`Max bounce depth exceeded. [ depth: ${bounceDepth} ] [ allowedBounceDepth: ${allowedBounceDepth} ] [ params: ${safeStringify(params)} ]`)
+          log.error(`Max bounce depth exceeded. [ depth: ${bounceDepth} ] [ allowedBounceDepth: ${allowedBounceDepth} ] [ params: ${safeStringify(params)} ]`)
         }
       },
       genericApi: (params, addDependency) => {
@@ -325,7 +330,7 @@ function dependencyBuilders(helpers) {
                 }})
             }}})
         } else {
-          error(`Max recursion depth exceeded. [ depth: ${recursionDepth} ] [ allowedRecursionDepth: ${allowedRecursionDepth} ] [ params: ${safeStringify(params)} ]`)
+          log.error(`Max recursion depth exceeded. [ depth: ${recursionDepth} ] [ allowedRecursionDepth: ${allowedRecursionDepth} ] [ params: ${safeStringify(params)} ]`)
         }
       },
       eventConfiguredDD: (params, addDependency, addResourceReference, getDependencyName, processParams, processParamValue, addFullfilledResource) => {
@@ -362,7 +367,7 @@ function dependencyBuilders(helpers) {
           }
         })
         } else {
-          error(`Max bounce depth exceeded. [ depth: ${bounceDepth} ] [ allowedBounceDepth: ${allowedBounceDepth} ] [ params: ${safeStringify(params)} ]`)
+          log.error(`Max bounce depth exceeded. [ depth: ${bounceDepth} ] [ allowedBounceDepth: ${allowedBounceDepth} ] [ params: ${safeStringify(params)} ]`)
         }
       },
       DD: (params, addDependency, addResourceReference, getDependencyName, processParams, processParamValue, addFullfilledResource) => {
@@ -400,7 +405,7 @@ function dependencyBuilders(helpers) {
             }
           })
         } else {
-          error(`Max bounce depth exceeded. [ depth: ${bounceDepth} ] [ allowedBounceDepth: ${allowedBounceDepth} ] [ params: ${safeStringify(params)} ]`)
+          log.error(`Max bounce depth exceeded. [ depth: ${bounceDepth} ] [ allowedBounceDepth: ${allowedBounceDepth} ] [ params: ${safeStringify(params)} ]`)
         }
       },
       explorandaUpdated: (params, addDependency, addResourceReference, getDependencyName, processParams) => {
@@ -438,8 +443,7 @@ function getQualifiedName(prefix, depName) {
   return depName ? `${prefix}_${depName}` : prefix
 }
 
-
-function generateDependencies(input, config, transformers, mergedDependencyBuilders) {
+function generateDependencies(input, config, transformers, mergedDependencyBuilders, log) {
   const dependencies = {}
   const dependencyToConfigStepMap = {}
   const resourceReferences = {}
@@ -454,7 +458,7 @@ function generateDependencies(input, config, transformers, mergedDependencyBuild
   function addDependency(dryRun, prefix, depName, dep) {
     const name = getQualifiedName(prefix, depName)
     if (dryRun) {
-      console.log(`Would add dependency ${name} consisting of ${JSON.stringify(stringableDependency(dep))}`)
+      log.info(`Would add dependency ${name} consisting of ${JSON.stringify(stringableDependency(dep))}`)
     } else {
       dependencies[name] = dep
       if (!dependencyToConfigStepMap[prefix]) {
@@ -465,15 +469,15 @@ function generateDependencies(input, config, transformers, mergedDependencyBuild
     return name
   }
   _.each(config, (desc, name) => {
-    if (testEvent(name, desc.condition, _.partial(processParamValue, transformers, input, false))) {
+    if (testEvent(name, desc.condition, _.partial(processParamValue, transformers, input, false, log), log)) {
       builder = mergedDependencyBuilders[desc.action]
       return builder(
-        processParams(transformers, input, false, desc.params),
+        processParams(transformers, input, false, log, desc.params),
         _.partial(addDependency, desc.dryRun, name),
-        _.partial(addResourceReference, name, _.partial(processParams, transformers, input)),
+        _.partial(addResourceReference, name, _.partial(processParams, transformers, input, false, log)),
         _.partial(getQualifiedName, name),
-        _.partial(processParams, transformers, input, false),
-        _.partial(processParamValue, transformers, input, false),
+        _.partial(processParams, transformers, input, false, log),
+        _.partial(processParamValue, transformers, input, false, log),
         addFullfilledResource,
         transformers
       )
@@ -486,7 +490,7 @@ function generateDependencies(input, config, transformers, mergedDependencyBuild
         dependencyResults[configStepName] = formatter(_.pick(dependencyResults, addedDepNames))
       }
       else if (formatter) {
-        const resolvedFormatter = processParamValue(transformers, input, false, formatter)
+        const resolvedFormatter = processParamValue(transformers, input, false, log, formatter)
         if (_.isFunction(resolvedFormatter)) {
           dependencyResults[configStepName] = resolvedFormatter(_.pick(dependencyResults, addedDepNames))
         }
@@ -503,27 +507,30 @@ function stringableDependency(dep) {
   return stringable
 }
 
-const testEvent = function(name, condition, processParamValue) {
+const testEvent = function(name, condition, processParamValue, log) {
   const notApplicable = !condition
   let processed = null
   if (condition) {
     processed = processParamValue(condition)
   }
   const result = notApplicable || processed
-  trace(`Testing condition for ${name}: [ condition: ${condition ? JSON.stringify(condition) : condition} ] [ notApplicable: ${notApplicable} ] [ processResult: ${_.isObjectLike(processed) ? JSON.stringify(processed) : processed} ] [ overAllResult: ${result} ]`)
+  log.trace(`Testing condition for ${name}: [ condition: ${condition ? JSON.stringify(condition) : condition} ] [ notApplicable: ${notApplicable} ] [ processResult: ${_.isObjectLike(processed) ? JSON.stringify(processed) : processed} ] [ overAllResult: ${result} ]`)
   return result
 }
 
-function logStage(stage, vars, dependencies, resourceReferences, fulfilledResources) {
-  trace(`${stage}: [ vars: ${_.isObjectLike(vars) ? safeStringify(vars) : vars} ] [ deps: ${safeStringify(_.reduce(dependencies, (acc, v, k) => {
+function logStage(stage, vars, dependencies, resourceReferences, fulfilledResources, log) {
+  log.trace(`${stage}: [ vars: ${_.isObjectLike(vars) ? safeStringify(vars) : vars} ] [ deps: ${safeStringify(_.reduce(dependencies, (acc, v, k) => {
     acc[k] = stringableDependency(v)
     return acc
   }, {}))} ] [ resourceReferences: ${safeStringify(resourceReferences)} ] [ fulfilledResources: ${safeStringify(fulfilledResources)} ]`)
 }
 
+let n = 0
+
 // If this signature changes, remember to update the test harness or tests will break.
-function createTask(config, helperFunctions, dependencyHelpers, recordCollectors) {
-  trace(`Building tasks with config: ${safeStringify(config)}`)
+function createTask(config, helperFunctions, dependencyHelpers, recordCollectors, logger) {
+  const log = makeLogger(logger)
+  log.trace(`Building tasks with config: ${safeStringify(config)}`)
   const expectations = _.cloneDeep(_.get(config, 'expectations') || {})
   const condition = _.cloneDeep(_.get(config, 'condition'))
   const cleanup = _.cloneDeep(_.get(config, 'cleanup') || {})
@@ -535,17 +542,17 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
       gopher.recordCollectors[k] = v
     })
   }
-  const mergedDependencyBuilders = dependencyBuilders(dependencyHelpers)
+  const mergedDependencyBuilders = dependencyBuilders(dependencyHelpers, log)
   function makeStageDependencies(stageName, context) {
     const stageConfig = _.get(stages, [stageName, 'transformers'])
-    trace(stageName)
-    const stageEnabled = testEvent(stageName, _.get(stages, [stageName, 'condition']), _.partial(processParamValue, helperFunctions, {...context}, false))
-    const input = stageEnabled ? transformInput(stageName, stageConfig, _.partial(processParams, helperFunctions, context, false)) : {}
-    const stageDependencies = stageEnabled ? generateDependencies({...{stage: input}, ...context}, _.get(stages, [stageName, 'dependencies']), helperFunctions, mergedDependencyBuilders) : {}
+    log.trace(stageName)
+    const stageEnabled = testEvent(stageName, _.get(stages, [stageName, 'condition']), _.partial(processParamValue, helperFunctions, {...context}, false, log), log)
+    const input = stageEnabled ? transformInput(stageName, stageConfig, _.partial(processParams, helperFunctions, context, false, log), log) : {}
+    const stageDependencies = stageEnabled ? generateDependencies({...{stage: input}, ...context}, _.get(stages, [stageName, 'dependencies']), helperFunctions, mergedDependencyBuilders, log) : {}
     return {...{vars: input}, ...stageDependencies }
   }
   return function(event, context, callback) {
-    info(`event: ${safeStringify(event)}`)
+    log.info(`event: ${safeStringify(event)}`)
     const errorOnUnfulfilledExpectation = _.isBoolean(_.get(config, 'errorOnUnfulfilledExpectation')) ? _.get(config, 'errorOnUnfulfilledExpectation') : true
     function markExpectationsFulfilled(fulfilledResources) {
       _.each(fulfilledResources, (r) => {
@@ -562,7 +569,7 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
         const callback = args[1] || args[0]
         const {vars, dependencies, resourceReferences, formatters, fulfilledResources} = makeStageDependencies(stageName, stageContext)
         markExpectationsFulfilled(fulfilledResources)
-        logStage(stageName, vars, dependencies, resourceReferences, fulfilledResources)
+        logStage(stageName, vars, dependencies, resourceReferences, fulfilledResources, log)
         const reporter = exploranda.Gopher(dependencies);
         addRecordCollectors(reporter)
         reporter.report((e, n) => {
@@ -572,7 +579,7 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
       }
     }
     function checkExpectationsFulfilled() {
-      trace(`[ all expectations: ${safeStringify(expectations)} ]`)
+      log.trace(`[ all expectations: ${safeStringify(expectations)} ]`)
       unfulfilledExpectations = _.reduce(expectations, (acc, v, k) => {
         if (!v.fulfilled) {
           acc[k] = v
@@ -581,7 +588,7 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
       }, {})
       if (_.values(unfulfilledExpectations).length) {
         const msg = `[ Unfulfilled expectations: ${safeStringify(unfulfilledExpectations)} ] [ error: ${errorOnUnfulfilledExpectation} ]`
-        error(msg)
+        log.error(msg)
         if (errorOnUnfulfilledExpectation) {
           throw new Error(msg)
         }
@@ -591,27 +598,27 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
       const runContext = {...(args.length === 2 ? args[0] : {}), ...{event, context, config}}
       const callback = args[1] || args[0]
       setTimeout(() => {
-        trace('cleanup')
+        log.trace('cleanup')
         try {
           checkExpectationsFulfilled()
           const stageConfig = _.get(cleanup, 'transformers')
-          callback(null, transformInput('cleanup', stageConfig, _.partial(processParams, helperFunctions, runContext, false)))
+          callback(null, transformInput('cleanup', stageConfig, _.partial(processParams, helperFunctions, runContext, false, log), log))
         } catch(e) {
           callback(e)
         }
       }, 0)
     }
-    if (testEvent('task', condition, _.partial(processParamValue, helperFunctions, {event, context}, false))) {
-      debug(`event ${event ? JSON.stringify(event) : event} matched for processing`)
+    if (testEvent('task', condition, _.partial(processParamValue, helperFunctions, {event, context}, false, log), log)) {
+      log.debug(`event ${event ? JSON.stringify(event) : event} matched for processing`)
       const stageFunctions = _(stages).toPairs().sortBy(([name, conf]) => conf.index).map(([name, conf], index) => {
         if (conf.index !== index) {
-          warn(`stage ${name} has index ${conf.index} but is being inserted at ${index}`)
+          log.warn(`stage ${name} has index ${conf.index} but is being inserted at ${index}`)
         }
         return stageExecutor(name)
       }).value()
       async.waterfall(_.concat(stageFunctions, [performCleanup]), callback)
     } else {
-      debug(`event ${event ? JSON.stringify(event) : event} did not match for processing`)
+      log.debug(`event ${event ? JSON.stringify(event) : event} did not match for processing`)
       try {
         checkExpectationsFulfilled()
         callback()
