@@ -411,13 +411,15 @@ function dependencyBuilders(helpers, log) {
       explorandaUpdated: (params, addDependency, addResourceReference, getDependencyName, processParams) => {
         addDependency(params.dependencyName, {
           accessSchema: _.isString(params.accessSchema) ? _.get(exploranda, params.accessSchema) : params.accessSchema,
-          params: params.params
+          params: params.params,
+          behaviors: params.behaviors,
         })
       },
       exploranda: (params, addDependency, addResourceReference, getDependencyName, processParams) => {
         addDependency(params.dependencyName, {
           accessSchema: _.isString(params.accessSchema) ? _.get(exploranda, params.accessSchema) : params.accessSchema,
-          params: params.params
+          params: params.params,
+          behaviors: params.behaviors,
         })
       },
       explorandaDeprecated: (params, addDependency, addResourceReference, getDependencyName, processParams) => {
