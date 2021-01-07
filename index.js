@@ -3,6 +3,7 @@ var exploranda = require('exploranda-core');
 const async = require('async')
 const _ = require('lodash');
 const uuid = require('uuid')
+const rlogger = require('rlogger')
 
 const defaults = {
   MAX_RECURSION_DEPTH: 3,
@@ -16,20 +17,9 @@ function defaultLogger(level, message) {
   }
 }
 
-function makeLogger(log) {
-  log = log || defaultLogger
-  return {
-    trace: _.partial(log, 'TRACE'),
-    debug: _.partial(log, 'DEBUG'),
-    info: _.partial(log, 'INFO'),
-    warn: _.partial(log, 'WARN'),
-    error: _.partial(log, 'ERROR'),
-  }
-}
-
 // If this signature changes, remember to update the test harness or tests will break.
 function transformInput(stage, stageConfig, processParams, log) {
-  log.trace(`making input for ${stage} with ${JSON.stringify(stageConfig)}`)
+  log.trace({tags: ["MAKE_INPUT"], metadata: {stage, config: safeStringify(stageConfig)}})
   return processParams(stageConfig)
 }
 
@@ -89,9 +79,11 @@ function processParams(helperFunctions, input, requireValue, log, params) {
   _.each(params, (v, k) => {
     output[k] = processParamValue(helperFunctions, input, requireValue, log, v)
     if (_.isNull(output[k]) || _.isUndefined(output[k]) && requireValue) {
-      log.error(`parameter ${k} returned null or undefined value from schema ${safeStringify(v)} : ${output[k]}`)
+      // coponent: donut-days, tags: ["NULL_PARAM", "REQUIRED_VALUE"]
+      log.error({tags: ["NULL_PARAM", "REQUIRED_VALUE"], metadata: {parameter: k, schema: safeStringify(v)}})
     }
-    log.trace(`Processed param [ name: ${k} ] [ plan: ${safeStringify(v)} ] [ input: ${safeStringify(input)} ] [ result: ${safeStringify(output[k])} ]`)
+    // component: donut-days, tags: ["PARAMETER_VALUE"], metadata: { stageName: <>, subStage: <>, partName: <>}
+    log.trace({tags: ["PARAMETER_VALUE"], metadata: {name: k, plan: safeStringify(v), input: safeStringify(input), value: safeStringify(output[k])}})
   })
   return output
 }
@@ -209,7 +201,8 @@ function processParamValue(helperFunctions, input, requireValue, log, value) {
   } else if (value.helper) {
     const helper = _.get(transformers, value.helper)
     if (!_.isFunction(helper)) {
-      log.error(`No helper function named ${value.helper}. Instead found ${safeStringify(helper)}. Available helpers: ${JSON.stringify(_.keys(transformers))}`)
+      // component: donut-days, tags: ["MISSING_HELPER"], metadata: { stageName: <>, subStage: <>, partName: <>, helperName: <>}
+      log.error({tags: ["MISSING_HELPER"], metadata: { name: value.helper}})
     } else {
       return helper(processParams(helperFunctions, input, requireValue, log, value.params), {processParamValue: _.partial(processParamValue, helperFunctions, input, requireValue, log)})
     }
@@ -230,7 +223,7 @@ function safeStringify(o) {
         } else {
           return v
         }
-      }, 2)
+      })
       return res
     } catch(e) {
       Buffer.prototype.toJSON = originalBufferJson
@@ -261,7 +254,8 @@ function dependencyBuilders(helpers, log) {
             }
           })
         } else {
-          log.error(`Max bounce depth exceeded. [ depth: ${bounceDepth} ] [ allowedBounceDepth: ${allowedBounceDepth} ] [ params: ${safeStringify(params)} ]`)
+          // component: donut-days, tags: ["DEPTH_LIMIT_EXCEEDED"]
+          log.error({tags: ["DEPTH_LIMIT_EXCEEDED"], metadata: {type: 'bounce', depth: bounceDepth, allowed: allowedBounceDepth, params: safeStringify(params)}})
         }
       },
       genericApi: (params, addDependency) => {
@@ -330,7 +324,8 @@ function dependencyBuilders(helpers, log) {
                 }})
             }}})
         } else {
-          log.error(`Max recursion depth exceeded. [ depth: ${recursionDepth} ] [ allowedRecursionDepth: ${allowedRecursionDepth} ] [ params: ${safeStringify(params)} ]`)
+          // component: donut-days, tags: ["DEPTH_LIMIT_EXCEEDED"]
+          log.error({tags: ["DEPTH_LIMIT_EXCEEDED"], metadata: {type: 'recursion', depth: recursionDepth, allowed: allowedRecursionDepth, params: safeStringify(params)}})
         }
       },
       eventConfiguredDD: (params, addDependency, addResourceReference, getDependencyName, processParams, processParamValue, addFullfilledResource) => {
@@ -367,7 +362,8 @@ function dependencyBuilders(helpers, log) {
           }
         })
         } else {
-          log.error(`Max bounce depth exceeded. [ depth: ${bounceDepth} ] [ allowedBounceDepth: ${allowedBounceDepth} ] [ params: ${safeStringify(params)} ]`)
+          // component: donut-days, tags: ["DEPTH_LIMIT_EXCEEDED"]
+          log.error({tags: ["DEPTH_LIMIT_EXCEEDED"], metadata: {type: 'bounce', depth: bounceDepth, allowed: allowedBounceDepth, params: safeStringify(params)}})
         }
       },
       DD: (params, addDependency, addResourceReference, getDependencyName, processParams, processParamValue, addFullfilledResource) => {
@@ -405,7 +401,8 @@ function dependencyBuilders(helpers, log) {
             }
           })
         } else {
-          log.error(`Max bounce depth exceeded. [ depth: ${bounceDepth} ] [ allowedBounceDepth: ${allowedBounceDepth} ] [ params: ${safeStringify(params)} ]`)
+          // component: donut-days, tags: ["DEPTH_LIMIT_EXCEEDED"]
+          log.error({tags: ["DEPTH_LIMIT_EXCEEDED"], metadata: {type: 'bounce', depth: bounceDepth, allowed: allowedBounceDepth, params: safeStringify(params)}})
         }
       },
       explorandaUpdated: (params, addDependency, addResourceReference, getDependencyName, processParams) => {
@@ -460,7 +457,8 @@ function generateDependencies(input, config, transformers, mergedDependencyBuild
   function addDependency(dryRun, prefix, depName, dep) {
     const name = getQualifiedName(prefix, depName)
     if (dryRun) {
-      log.info(`Would add dependency ${name} consisting of ${JSON.stringify(stringableDependency(dep))}`)
+      // component: donut-days, tags: ["DRY_RUN_DEPENDENCY"]
+      log.info({tags: ["DRY_RUN_DEPENDENCY"], metadata: {name, config: safeStringify(stringableDependency(dep))}})
     } else {
       dependencies[name] = dep
       if (!dependencyToConfigStepMap[prefix]) {
@@ -516,23 +514,24 @@ const testEvent = function(name, condition, processParamValue, log) {
     processed = processParamValue(condition)
   }
   const result = notApplicable || processed
-  log.trace(`Testing condition for ${name}: [ condition: ${condition ? JSON.stringify(condition) : condition} ] [ notApplicable: ${notApplicable} ] [ processResult: ${_.isObjectLike(processed) ? JSON.stringify(processed) : processed} ] [ overAllResult: ${result} ]`)
+  // component: donut-days, tags: ["CONDITION_TEST"], metadata: { condition, notApplicable, processResult, overallResult }
+  log.trace({tags: ["CONDITION_TEST"], metadata: { name, condition: condition ? safeStringify(condition) : condition, notApplicable, processResult: _.isObjectLike(processed) ? safeStringify(processed) : processed, overallResult: result }})
   return result
 }
 
 function logStage(stage, vars, dependencies, resourceReferences, fulfilledResources, log) {
-  log.trace(`${stage}: [ vars: ${_.isObjectLike(vars) ? safeStringify(vars) : vars} ] [ deps: ${safeStringify(_.reduce(dependencies, (acc, v, k) => {
+  // component: donut-days, tags: ["STAGE_SUMMARY"], metadata: { vars, results, resourceReferences, fulfilledResources }
+  const deps = safeStringify(_.reduce(dependencies, (acc, v, k) => {
     acc[k] = stringableDependency(v)
     return acc
-  }, {}))} ] [ resourceReferences: ${safeStringify(resourceReferences)} ] [ fulfilledResources: ${safeStringify(fulfilledResources)} ]`)
+  }, {}))
+  log.trace({tags: ["STAGE_SUMMARY"], metadata: {stage, vars:_.isObjectLike(vars) ? safeStringify(vars) : vars,  deps, resourceReferences: safeStringify(resourceReferences), fulfilledResources: safeStringify(fulfilledResources)}})
 }
-
-let n = 0
 
 // If this signature changes, remember to update the test harness or tests will break.
 function createTask(config, helperFunctions, dependencyHelpers, recordCollectors, logger) {
-  const log = makeLogger(logger)
-  log.trace(`Building tasks with config: ${safeStringify(config)}`)
+  const log = rlogger.init(logger, { component: 'donut-days' })
+  log.trace({tags: ["CREATE_TASK"]})
   const expectations = _.cloneDeep(_.get(config, 'expectations') || {})
   const condition = _.cloneDeep(_.get(config, 'condition'))
   const cleanup = _.cloneDeep(_.get(config, 'cleanup') || {})
@@ -547,14 +546,17 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
   const mergedDependencyBuilders = dependencyBuilders(dependencyHelpers, log)
   function makeStageDependencies(stageName, context) {
     const stageConfig = _.get(stages, [stageName, 'transformers'])
-    log.trace(stageName)
+    log.trace({tags: ["MAKE_STAGE_DEPENDENCIES"], metadata: {stageName}})
     const stageEnabled = testEvent(stageName, _.get(stages, [stageName, 'condition']), _.partial(processParamValue, helperFunctions, {...context}, false, log), log)
     const input = stageEnabled ? transformInput(stageName, stageConfig, _.partial(processParams, helperFunctions, context, false, log), log) : {}
     const stageDependencies = stageEnabled ? generateDependencies({...{stage: input}, ...context}, _.get(stages, [stageName, 'dependencies']), helperFunctions, mergedDependencyBuilders, log) : {}
     return {...{vars: input}, ...stageDependencies }
   }
   return function(event, context, callback) {
-    log.info(`event: ${safeStringify(event)}`)
+    log.setSource(_.get(context, 'invokedFunctionArn'))
+    log.setSourceInstance(_.get(context, 'awsRequestId'))
+    // component: donut-days, tags: ["EVENT_RECEIPT"], metadata: {functionName, event}
+    log.info({tags: ["EVENT_RECEIPT"], metadata: { event: safeStringify(event)}})
     const errorOnUnfulfilledExpectation = _.isBoolean(_.get(config, 'errorOnUnfulfilledExpectation')) ? _.get(config, 'errorOnUnfulfilledExpectation') : true
     function markExpectationsFulfilled(fulfilledResources) {
       _.each(fulfilledResources, (r) => {
@@ -581,7 +583,8 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
       }
     }
     function checkExpectationsFulfilled() {
-      log.trace(`[ all expectations: ${safeStringify(expectations)} ]`)
+      // component: donut-days, tags: ["EVENT_RECEIPT"], metadata: {functionName, event}
+      log.trace({tags: ["CHECK_EXPECTATIONS"], metadata: { expectations: safeStringify(expectations)} })
       unfulfilledExpectations = _.reduce(expectations, (acc, v, k) => {
         if (!v.fulfilled) {
           acc[k] = v
@@ -589,8 +592,9 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
         return acc;
       }, {})
       if (_.values(unfulfilledExpectations).length) {
+        // component: donut-days, tags: ['UNFULFILLED_EXPECTATION'] metadata: { unfulfilledExpectations, errorMessage}
         const msg = `[ Unfulfilled expectations: ${safeStringify(unfulfilledExpectations)} ] [ error: ${errorOnUnfulfilledExpectation} ]`
-        log.error(msg)
+        log.error({tags:  ["UNFULFILLED_EXPECTATIONS"], metadata: {Unfulfilled: safeStringify(unfulfilledExpectations), error: errorOnUnfulfilledExpectation}})
         if (errorOnUnfulfilledExpectation) {
           throw new Error(msg)
         }
@@ -600,7 +604,7 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
       const runContext = {...(args.length === 2 ? args[0] : {}), ...{event, context, config}}
       const callback = args[1] || args[0]
       setTimeout(() => {
-        log.trace('cleanup')
+        log.trace({tags: ["CLEANUP"]})
         try {
           checkExpectationsFulfilled()
           const stageConfig = _.get(cleanup, 'transformers')
@@ -611,16 +615,19 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
       }, 0)
     }
     if (testEvent('task', condition, _.partial(processParamValue, helperFunctions, {event, context}, false, log), log)) {
-      log.debug(`event ${event ? JSON.stringify(event) : event} matched for processing`)
+      // component: donut-days, tags: ['EVENT_MATCH']
+      log.debug({tags: ["EVENT_MATCH"]})
       const stageFunctions = _(stages).toPairs().sortBy(([name, conf]) => conf.index).map(([name, conf], index) => {
         if (conf.index !== index) {
-          log.warn(`stage ${name} has index ${conf.index} but is being inserted at ${index}`)
+          // component: donut-days, tags: ['REORDERED_STAGE'] metadata: { statedIndex, insertedIndex} 
+          log.warn({tags: ['REORDERED_STAGE'], metadata: { statedIndex: conf.index, insertedIndex: index}})
         }
         return stageExecutor(name)
       }).value()
       async.waterfall(_.concat(stageFunctions, [performCleanup]), callback)
     } else {
-      log.debug(`event ${event ? JSON.stringify(event) : event} did not match for processing`)
+      // component: donut-days, tags: ['EVENT_NON_MATCH']
+      log.debug({tags: ['EVENT_NON_MATCH']})
       try {
         checkExpectationsFulfilled()
         callback()

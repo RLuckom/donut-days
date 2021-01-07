@@ -28,10 +28,11 @@
     "async": "^3.2.0",
     "exploranda-core": "0.5.2",
     "lodash": "^4.17.20",
-    "uuid": "^8.3.0"
+    "rlogger": "github:RLuckom/rlogger#main",
+    "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "jasmine": "^3.6.1",
+    "jasmine": "^3.6.3",
     "rewire": "^5.0.0"
   }
 }
