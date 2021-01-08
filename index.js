@@ -210,6 +210,9 @@ function processParamValue(helperFunctions, input, requireValue, log, value) {
 }
 
 function safeStringify(o) {
+  if (_.isFunction(o)) {
+    return typeof o
+  }
   if (_.isObjectLike(o)) {
     const originalBufferJson = Buffer.prototype.toJSON
     Buffer.prototype.toJSON = function() { return this }
