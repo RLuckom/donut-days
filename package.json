@@ -28,7 +28,7 @@
     "async": "^3.2.0",
     "exploranda-core": "0.5.2",
     "lodash": "^4.17.20",
-    "rlogger": "github:RLuckom/rlogger#main",
+    "raphlogger": "0.0.1",
     "uuid": "^8.3.2"
   },
   "devDependencies": {

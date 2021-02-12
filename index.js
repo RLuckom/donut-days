@@ -3,7 +3,7 @@ var exploranda = require('exploranda-core');
 const async = require('async')
 const _ = require('lodash');
 const uuid = require('uuid')
-const rlogger = require('rlogger')
+const raphlogger = require('raphlogger')
 
 const defaults = {
   MAX_RECURSION_DEPTH: 3,
@@ -533,7 +533,7 @@ function logStage(stage, vars, dependencies, resourceReferences, fulfilledResour
 
 // If this signature changes, remember to update the test harness or tests will break.
 function createTask(config, helperFunctions, dependencyHelpers, recordCollectors, logger) {
-  const log = rlogger.init(logger, { component: 'donut-days' })
+  const log = raphlogger.init(logger, { component: 'donut-days' })
   log.trace({tags: ["CREATE_TASK"]})
   const expectations = _.cloneDeep(_.get(config, 'expectations') || {})
   const condition = _.cloneDeep(_.get(config, 'condition'))
