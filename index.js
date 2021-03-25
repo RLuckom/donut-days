@@ -199,7 +199,7 @@ function processParamValue(helperFunctions, input, requireValue, log, value) {
   } else if (value.all) {
     return processParams(helperFunctions, input, requireValue, log, value.all)
   } else if (value.helper) {
-    const helper = _.get(transformers, value.helper)
+    const helper = _.isString(value.helper) ? _.get(transformers, value.helper) : value.helper
     if (!_.isFunction(helper)) {
       // component: donut-days, tags: ["MISSING_HELPER"], metadata: { stageName: <>, subStage: <>, partName: <>, helperName: <>}
       log.error({tags: ["MISSING_HELPER"], metadata: { name: value.helper}})
