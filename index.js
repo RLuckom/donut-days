@@ -473,7 +473,7 @@ function generateDependencies(input, config, transformers, mergedDependencyBuild
   }
   _.each(config, (desc, name) => {
     if (testEvent(name, desc.condition, _.partial(processParamValue, transformers, input, false, log), log)) {
-      builder = mergedDependencyBuilders[desc.action]
+      builder = _.get(mergedDependencyBuilders, desc.action)
       return builder(
         processParams(transformers, input, false, log, desc.params),
         _.partial(addDependency, desc.dryRun, name),
