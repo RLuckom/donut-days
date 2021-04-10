@@ -207,6 +207,7 @@ function processParamValue(helperFunctions, input, requireValue, log, value) {
       return helper(processParams(helperFunctions, input, requireValue, log, value.params), {processParamValue: _.partial(processParamValue, helperFunctions, input, requireValue, log)})
     }
   }
+  return value
 }
 
 function safeStringify(o) {
@@ -408,17 +409,17 @@ function dependencyBuilders(helpers, log) {
           log.error({tags: ["DEPTH_LIMIT_EXCEEDED"], metadata: {type: 'bounce', depth: bounceDepth, allowed: allowedBounceDepth, params: safeStringify(params)}})
         }
       },
-      explorandaUpdated: (params, addDependency, addResourceReference, getDependencyName, processParams) => {
+      explorandaUpdated: (params, addDependency, addResourceReference, getDependencyName, processParams, processParamValue) => {
         addDependency(params.dependencyName, {
           accessSchema: _.isString(params.accessSchema) ? _.get(exploranda, params.accessSchema) : params.accessSchema,
-          params: params.params,
+          params: params.params || (params.explorandaParams ? { explorandaParams: params.explorandaParams} : params.params),
           behaviors: params.behaviors,
         })
       },
-      exploranda: (params, addDependency, addResourceReference, getDependencyName, processParams) => {
+      exploranda: (params, addDependency, addResourceReference, getDependencyName, processParams, processParamValue) => {
         addDependency(params.dependencyName, {
           accessSchema: _.isString(params.accessSchema) ? _.get(exploranda, params.accessSchema) : params.accessSchema,
-          params: params.params,
+          params: params.params || (params.explorandaParams ? processParamValue({ explorandaParams: params.explorandaParams}) : params.params),
           behaviors: params.behaviors,
         })
       },

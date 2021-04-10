@@ -340,14 +340,12 @@ const test41 = {
             formatter: ({nextFunction}) => nextFunction.result,
             params: {
               accessSchema: { value: 'dataSources.AWS.lambda.invoke'},
-              params: {
-                explorandaParams: {
-                  FunctionName: { ref: 'stage.one'},
-                  Payload: { helper: 'one' ,
-                    params: {
-                      a: { ref: 'stage.one'},
-                      b: { value: 1},
-                    }
+              explorandaParams: {
+                FunctionName: { ref: 'stage.one'},
+                Payload: { helper: 'one' ,
+                  params: {
+                    a: { ref: 'stage.one'},
+                    b: { value: 1},
                   }
                 }
               }
