@@ -311,6 +311,7 @@ const test41 = {
     }
   },
   mockResults: {
+    metrics: {'x.y.z': {cached: 1}},
     results: {
       nextFunction: {
         result: 'success'

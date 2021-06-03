@@ -2,16 +2,16 @@ const _ = require('lodash')
 const rewire = require('rewire')
 const main = rewire('../../index.js')
 
-function makeExplorandaMock(validators, {err, results}, config) {
+function makeExplorandaMock(validators, {err, results, metrics}, config) {
   let calls = 0
   const newConfig = _.cloneDeep(config)
   const {conditions, expectations, cleanup, overrides, stages} = newConfig
   const keys = _(stages).toPairs().sort(([n, c]) => c.index).map(([n, c]) => n).value()
 
   const finishedSteps = []
-  function reporter(validator) {
+  function reporter() {
     return {
-      report: (f) => setTimeout(() => f(err, results), 0)
+      report: (f) => setTimeout(() => f(err, results, metrics), 0)
     }
   }
   return {
@@ -26,7 +26,7 @@ function makeExplorandaMock(validators, {err, results}, config) {
         console.log(`deps: ${JSON.stringify(dependencies)} keys: ${JSON.stringify(_.keys(validator.dependencies))}`)
       }
       validateDependencies(dependencies, validator.dependencies)
-      return reporter(validator)
+      return reporter()
     },
     dataSources: {AWS : { lambda: {invoke: true }}},
     finishedSteps
@@ -85,8 +85,9 @@ function generateTests(suiteName, testObjects) {
         const explorandaMock = makeExplorandaMock(validators, mockResults || {}, config)
         const unsetExploranda = main.__set__('exploranda', explorandaMock)
         const unsetTransformInput = main.__set__('transformInput', newTransformInput(originalTransformInput, validators))
-        main.createTask(config, helperFunctions || {}, dependencyHelpers || {})(event, context || {}, (e, r) => {
+        main.createTask(config, helperFunctions || {}, dependencyHelpers || {}, {}, _.noop)(event, context || {}, (e, r, metrics) => {
           (onComplete || _.noop)(explorandaMock.finishedSteps)
+          console.log(metrics)
           if (output || (r && !_.isEqual({}, r))) {
             expect(output).toEqual(r)
           }

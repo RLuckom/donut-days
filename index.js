@@ -580,9 +580,9 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
         logStage(stageName, vars, dependencies, resourceReferences, fulfilledResources, log)
         const reporter = exploranda.Gopher(dependencies);
         addRecordCollectors(reporter)
-        reporter.report((e, n) => {
+        reporter.report((e, n, metrics) => {
           _.each(formatters, (f) => f(n))
-          callback(e, { [stageName] : {vars, resourceReferences, results: n}, ...stageContext});
+          callback(e, { [stageName] : {vars, resourceReferences, metrics, results: n}, ...stageContext});
         })
       }
     }
@@ -607,12 +607,19 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
     function performCleanup(...args) {
       const runContext = {...(args.length === 2 ? args[0] : {}), ...{event, context, config}}
       const callback = args[1] || args[0]
+      const metrics = _.reduce(runContext, (acc, v, k) => {
+        const metrics = _.get(v, 'metrics')
+        if (metrics) {
+          acc[k] = metrics
+        }
+        return acc
+      }, {})
       setTimeout(() => {
         log.trace({tags: ["CLEANUP"]})
         try {
           checkExpectationsFulfilled()
           const stageConfig = _.get(cleanup, 'transformers')
-          callback(null, transformInput('cleanup', stageConfig, _.partial(processParams, helperFunctions, runContext, false, log), log))
+          callback(null, transformInput('cleanup', stageConfig, _.partial(processParams, helperFunctions, runContext, false, log), log), metrics)
         } catch(e) {
           callback(e)
         }
