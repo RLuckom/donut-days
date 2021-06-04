@@ -179,8 +179,8 @@ function processExplorandaParamValue(value, processParamValue) {
 
 function processParamValue(helperFunctions, input, requireValue, log, value) {
   const transformers = {...builtInTransformations, ...helperFunctions}
-  if (value.value || _.isFunction(value)) {
-    return value.value || value
+  if (!_.isUndefined(value.value) || _.isFunction(value)) {
+    return !_.isUndefined(value.value) ? value.value : value
   } else if (value.explorandaParams) {
     return _.reduce(value.explorandaParams, (acc, v, k) => {
       acc[k] = processExplorandaParamValue(v, _.partial(processParamValue, helperFunctions, input, requireValue, log))

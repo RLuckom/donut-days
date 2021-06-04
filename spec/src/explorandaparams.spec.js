@@ -8,16 +8,18 @@ const exp1 = {
       dependencies: {
       },
       dependencyInput: {
-        params: ({string, eventParam, sourceOnly, simpleConstructedSource, complexConstructedSource, arrayConstructedSource, sourceAndFormatter, sourceAndFormatterProcess, sourceAndFormatterFunction, sourceAndFormatterFunctionAs, sourceAndFormatterFunctionArrayLike}) => {
+        params: ({string, eventParam, falseValue, sourceOnly, simpleConstructedSource, complexConstructedSource, arrayConstructedSource, sourceAndFormatter, sourceAndFormatterProcess, sourceAndFormatterFunction, sourceAndFormatterFunctionAs, sourceAndFormatterFunctionArrayLike}) => {
           const dep4 = sourceAndFormatterFunction.formatter({dep4: ['f00']})
           const dep40 = sourceAndFormatterFunctionArrayLike.formatter({dep4: ['f00']})
           const dep400 = sourceAndFormatter.formatter({dep4: ['dep4']})
           const dep4000 = sourceAndFormatterFunctionAs.formatter({dep4: ['f00']})
           const dep40000 = sourceAndFormatterProcess.formatter({dep4: ['f00']})
           console.log(dep40000)
+          console.log(falseValue)
           return (
             _.isEqual(string, {value: 'string param' })
             && _.isEqual(eventParam, {value: 'bar'})
+            && _.isEqual(falseValue, {value: false})
             && _.isEqual(sourceOnly, {source: 'dep0'})
             && _.isEqual(simpleConstructedSource, {source: 'dep1'})
             && _.isEqual(complexConstructedSource, {source: 'dep2_step1'})
@@ -54,6 +56,7 @@ const exp1 = {
           explorandaParams: {
             string: 'string param',
             eventParam: {ref: 'event.foo'},
+            falseValue: {value: false},
             sourceOnly: { source: 'dep0'},
             simpleConstructedSource: { source: { configStepName: 'dep1'}},
             complexConstructedSource: { source: { configStepName: 'dep2', dependencyName: 'step1'}},
