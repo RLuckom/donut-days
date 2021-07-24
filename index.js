@@ -581,7 +581,9 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
         const reporter = exploranda.Gopher(dependencies);
         addRecordCollectors(reporter)
         reporter.report((e, n, metrics) => {
-          _.each(formatters, (f) => f(n))
+          if (n) {
+            _.each(formatters, (f) => f(n))
+          }
           callback(e, { [stageName] : {vars, resourceReferences, metrics, results: n}, ...stageContext});
         })
       }
