@@ -26,7 +26,7 @@
   "homepage": "https://github.com/RLuckom/donut-days#readme",
   "dependencies": {
     "async": "^3.2.0",
-    "exploranda-core": "0.6.10",
+    "exploranda-core": "0.6.11",
     "lodash": "^4.17.20",
     "raphlogger": "0.0.1",
     "uuid": "^8.3.2"
