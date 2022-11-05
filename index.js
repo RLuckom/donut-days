@@ -584,6 +584,9 @@ function createTask(config, helperFunctions, dependencyHelpers, recordCollectors
           if (n) {
             _.each(formatters, (f) => f(n))
           }
+          if (e) {
+            e.stageName = stageName
+          }
           callback(e, { [stageName] : {vars, resourceReferences, metrics, results: n}, ...stageContext});
         })
       }
